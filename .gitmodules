@@ -1,0 +1,6 @@
+[submodule "jena-datatensor"]
+	path = jena-datatensor
+	url = git@github.com:Dakantz/jena-datatensor.git
+[submodule "qlever"]
+	path = qlever
+	url = git@github.com:Dakantz/qlever.git
