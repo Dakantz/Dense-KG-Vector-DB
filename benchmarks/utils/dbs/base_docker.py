@@ -26,10 +26,18 @@ class BaseDocker(BaseDB):
         endpoint: str | None = None,
         container_name: str = __name__,
         logger_dir=Path("./logs"),
+        name: str = __name__,
         *args,
         **kwargs,
     ):
-        super().__init__(dataset=dataset, endpoint=endpoint, logger_dir=logger_dir)
+        super().__init__(
+            dataset=dataset,
+            endpoint=endpoint,
+            logger_dir=logger_dir,
+            name=name,
+            *args,
+            **kwargs,
+        )
         self.docker_container_name = container_name
 
     @abstractmethod

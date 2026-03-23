@@ -40,11 +40,13 @@ class BaseDB(ABC):
         endpoint: str | None = None,
         logger_dir=Path("./logs"),
         prefixes: dict[str, str] | None = None,
+        name: str = __name__,
         *args,
         **kwargs,
     ):
         logger_dir.mkdir(exist_ok=True)
 
+        self.name = name
         self.endpoint = (
             endpoint if endpoint is not None else "http://localhost:3030/default/sparql"
         )

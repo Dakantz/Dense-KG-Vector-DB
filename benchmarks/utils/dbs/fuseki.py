@@ -27,11 +27,15 @@ class FusekiDB(BaseDocker):
         id: str = "default",
         build_dir: Path = Path("./jena-datatensor"),
         use_encoded_ttl: bool = False,
+        name: str = "FusekiDB + RDFTensor",
     ):
         port_id = self.port_id + 1
         endpoint = f"http://localhost:{port_id}/{id}/sparql"
         super().__init__(
-            dataset=dataset, endpoint=endpoint, container_name=f"fuseki_benchmarks_{id}"
+            dataset=dataset,
+            endpoint=endpoint,
+            container_name=f"fuseki_benchmarks_{id}",
+            name=name,
         )
         self.port_id = port_id
         self.id = id
