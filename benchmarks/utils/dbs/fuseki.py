@@ -7,7 +7,7 @@ import rdflib.store
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
 from .base_docker import BaseDocker
-from ..datasets.base_dataset import BaseDataset
+from ..datasets.base_dataset import BaseDataset, QUERY_TYPE, DataTensor
 import shutil
 from pathlib import Path
 import rdflib
@@ -26,6 +26,7 @@ class FusekiDB(BaseDocker):
         dataset: BaseDataset,
         id: str = "default",
         build_dir: Path = Path("./jena-datatensor"),
+        use_encoded_ttl: bool = False,
     ):
         port_id = self.port_id + 1
         endpoint = f"http://localhost:{port_id}/{id}/sparql"
@@ -39,6 +40,7 @@ class FusekiDB(BaseDocker):
         self.db_dir = base_dir / "db"
         self.docker_image = "jena-datatensor"
         self.build_dir = build_dir
+        self.use_encoded_ttl = use_encoded_ttl
         self.server: subprocess.Popen | None = None
 
     def setup(self):
@@ -50,7 +52,11 @@ class FusekiDB(BaseDocker):
         logger.info(
             f"Loading dataset into Fuseki server from {self.dataset.get_ttl_file()}"
         )
-        full_ttl = self.dataset.get_ttl_file()
+        full_ttl = (
+            self.dataset.get_encoded_ttl_file()
+            if self.use_encoded_ttl
+            else self.dataset.get_ttl_file()
+        )
         if self.db_dir.exists() and any(self.db_dir.iterdir()):
             logger.warning(
                 f"DB directory {self.db_dir} already exists, removing locks if any"
@@ -84,3 +90,6 @@ class FusekiDB(BaseDocker):
             self.server.kill()
         self.run_command(f"docker stop {self.docker_container_name}", allow_fail=True)
         self.run_command(f"docker rm -f {self.docker_container_name}", allow_fail=True)
+
+    def get_available_query_types(self) -> list[QUERY_TYPE]:
+        return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.TWO_STAGE]

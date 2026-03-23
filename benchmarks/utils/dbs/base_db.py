@@ -10,7 +10,7 @@ from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
-from ..datasets.base_dataset import BaseDataset
+from ..datasets.base_dataset import BaseDataset, QUERY_TYPE
 
 
 import subprocess
@@ -39,6 +39,7 @@ class BaseDB(ABC):
         dataset: BaseDataset,
         endpoint: str | None = None,
         logger_dir=Path("./logs"),
+        prefixes: dict[str, str] | None = None,
         *args,
         **kwargs,
     ):
@@ -51,12 +52,16 @@ class BaseDB(ABC):
         self.store = SPARQLStore(
             self.endpoint,
             method="POST",
-            timeout=300,
+            timeout=3000,
         )
         self.dataset = dataset
-        self.g = rdflib.Graph(store=self.store)
         self.log_file = logger_dir / f"{self.__class__.__name__}.log"
         self.log_file_fd = open(self.log_file, "w")
+        self.prefixes: dict[str, str] = {} if prefixes is None else prefixes
+        self.g = rdflib.Graph(store=self.store)
+        for prefix, uri in self.prefixes.items() | self.dataset.prefixes.items():
+            logger.info(f"Binding prefix {prefix} to URI {uri}")
+            self.g.bind(prefix, uri)
 
     def run_command(self, command: str, allow_fail=False):
         # logger.info(f"Running command: {command}")
@@ -94,6 +99,13 @@ class BaseDB(ABC):
     def __exit__(self, exc_type, exc_value, traceback):
         logger.info("Exiting context manager, stopping database")
         self.stop()
+
+    def raw_query(self, sparql_query: str) -> Result:
+        logger.info(
+            f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
+        )
+        qres = self.g.store.query(sparql_query)
+        return qres
 
     def query(self, sparql_query: str) -> pd.DataFrame:
         logger.info(
@@ -151,10 +163,30 @@ class BaseDB(ABC):
         return pd.DataFrame(results)
 
     def __q_to_df_values(self, qres: Result) -> pd.DataFrame:
+        if isinstance(qres, tuple):
+            logger.error(f"Query failed: {qres}")
         if not qres.vars:
             return pd.DataFrame()
         cols = [str(var) for var in qres.vars]
         results = [dict(zip(cols, row)) for row in qres]  # type: ignore
         results_df = pd.DataFrame(results)
         results_df = results_df.map(self.to_readable)
+        results_df = self.remove_ns_from_df(results_df)
         return results_df
+
+    def remove_prefix(self, uri: str) -> str:
+        for prefix, namespace in self.prefixes.items() | self.dataset.prefixes.items():
+            if uri.startswith(f"<{namespace}"):
+                return f"{prefix}:{uri[len(str(namespace)) + 1 : -1]}"
+        return uri
+
+    def remove_ns_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        df_c = df.copy()
+        for column in df.columns:
+            df_c[column] = df.apply(
+                lambda row: self.remove_prefix(str(row[column])), axis=1
+            )
+        return df_c
+
+    def get_available_query_types(self) -> list[QUERY_TYPE]:
+        return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]
