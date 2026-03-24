@@ -83,18 +83,20 @@ PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
 PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
 SELECT ?product  ?vector ?dist
 WHERE {{
-    VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
 SERVICE tensorSearch: {{
        _:config tensorSearch:numNN 10 ;
       tensorSearch:left ?query_vector ;
       tensorSearch:bindDistance ?dist ;
       tensorSearch:payload ?product ;
+      tensorSearch:searchK 10 ;
+      tensorSearch:nTrees 10 ;
     tensorSearch:experimentalRightCacheName "easy_index_bsbm" ;
       tensorSearch:right ?vector .
        {{
         ?product rdf:label_embedding ?vector .
         }}
     }}
+    VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
 }}
 """
 

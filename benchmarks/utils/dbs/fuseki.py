@@ -52,7 +52,6 @@ class FusekiDB(BaseDocker):
         # load the dataset into the Fuseki server using the command line tool from the ttls from the dataset
         # by generating tdb2 file and then starting the docker container with the tdb2 file as volume
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Building docker image {self.docker_image} from {self.build_dir}")
         self.build_image()
         logger.info(
             f"Loading dataset into Fuseki server from {self.dataset.get_ttl_file()}"
