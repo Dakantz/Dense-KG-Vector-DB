@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import json
+import logging
+from pathlib import Path
 from typing import Literal, Optional, Tuple, Any
 import os
 import oxrdflib
@@ -9,58 +11,49 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 from rdflib import Literal as RDFLiteral
 from tqdm import tqdm
+from zmq import Enum
+import pandas as pd
+from .data_tensor import DataTensor
+
+logger = logging.getLogger(__name__)
 
 
-class QUERY_DIFFICULTY:
+class QUERY_DIFFICULTY(Enum):
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
 
 
-class QUERY_TYPE:
+class QUERY_TYPE(Enum):
     EMBEDDED = "embedded"
     INDEX = "index"
     TWO_STAGE = "two_stage"
 
 
-@dataclass
-class DataTensor:
-    data: list[float]
-    type: Literal["float32", "float64", "int32", "int64"]
-    shape: tuple[int, ...]
-
-    @staticmethod
-    def from_numpy(array: np.ndarray) -> "DataTensor":
-        return DataTensor(
-            data=array.flatten().tolist(),
-            type=str(array.dtype),
-            shape=array.shape,
+# generate all combinations of query difficulty and query type for the dataset, and implement a method to get the query for a given combination
+mixin_queries: dict[QUERY_DIFFICULTY, dict[QUERY_TYPE, type]] = {}
+for difficulty in [
+    QUERY_DIFFICULTY.EASY,
+    QUERY_DIFFICULTY.MEDIUM,
+    QUERY_DIFFICULTY.HARD,
+]:
+    mixin_queries[difficulty] = {}
+    for query_type in [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]:
+        class_name = (
+            f"{difficulty.value.capitalize()}{query_type.value.capitalize()}QueryMixin"
         )
-
-    def to_numpy(self) -> np.ndarray:
-        return np.array(self.data, dtype=self.type).reshape(self.shape)
-
-    @staticmethod
-    def from_literal(lit: RDFLiteral) -> "DataTensor":
-        json_str = str(lit)
-        data = json.loads(json_str)
-        return DataTensor(
-            data=data["data"],
-            type=data["type"],
-            shape=tuple(data["shape"]),
-        )
-
-    def to_literal(self) -> RDFLiteral:
-        json_str = json.dumps(
+        t = type(
+            class_name,
+            (object,),
             {
-                "data": self.data,
-                "type": self.type,
-                "shape": self.shape,
-            }
+                f"get_query_{difficulty.value}_{query_type.value}": abstractmethod(
+                    lambda self, embedding: NotImplementedError(
+                        f"get_query_{difficulty.value}_{query_type.value} not implemented for {self.__class__.__name__}"
+                    )
+                )
+            },
         )
-        return RDFLiteral(
-            json_str, datatype="https://w3id.org/rdf-tensor/datatypes#NumericDataTensor"
-        )
+        mixin_queries[difficulty][query_type] = t
 
 
 class BaseDataset(ABC):
@@ -80,27 +73,24 @@ class BaseDataset(ABC):
             data_dir: Directory to store/load dataset files
         """
         self.name = name
-        self.data_dir = data_dir or os.getcwd()
+        self.data_dir = Path(data_dir) if data_dir is not None else Path(os.getcwd())
         self._data = None
         self.prefixes = prefixes if prefixes is not None else {}
 
     def setup(self):
         pass
 
-    def get_ttl_files(self):
+    def get_ttl_files(self) -> list[Path]:
         return list(self.base_dir.rglob("*.ttl"))
 
-    def get_encoded_ttl_files(self):
+    def get_encoded_ttl_files(self) -> list[Path]:
         return list(self.base_dir.rglob("*_encoded.ttl"))
 
-    def get_ttl_file(self):
+    def get_ttl_file(self) -> Path:
         return self.base_dir / "_complet.ttl"
 
-    def get_encoded_ttl_file(self):
+    def get_encoded_ttl_file(self) -> Path:
         return self.base_dir / "_complet_encoded.ttl"
-
-    def get_available_difficulties(self) -> list[QUERY_DIFFICULTY]:
-        return [QUERY_DIFFICULTY.EASY, QUERY_DIFFICULTY.MEDIUM, QUERY_DIFFICULTY.HARD]
 
     def encode(self, model: SentenceTransformer, batch_size=32, force_reencode=False):
         # load triples from ttl file, encode the #label using the provided model, and save the embeddings to a new .ttl file with the same structure but with an additional triple for the embedding
@@ -138,11 +128,8 @@ class BaseDataset(ABC):
         # save the new graph to a ttl file
         g_encoding.serialize(self.get_encoded_ttl_file(), format="ox-nt")
 
-    @abstractmethod
-    def get_queries(
-        self,
-        difficulty: QUERY_DIFFICULTY,
-        query_type: QUERY_TYPE,
-        embedding: DataTensor,
-    ) -> str:
-        pass
+    def get_triple_count(self, encoded=False) -> int:
+        # count the number of triples in the ttl file
+        ttl_file = self.get_encoded_ttl_file() if encoded else self.get_ttl_file()
+        with open(ttl_file, "r") as f:
+            return sum(1 for _ in f)

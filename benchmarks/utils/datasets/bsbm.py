@@ -3,7 +3,13 @@ import logging
 
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
-from .base_dataset import BaseDataset, DataTensor, QUERY_DIFFICULTY, QUERY_TYPE
+from .base_dataset import (
+    BaseDataset,
+    DataTensor,
+    QUERY_DIFFICULTY,
+    QUERY_TYPE,
+    mixin_queries,
+)
 import subprocess
 import shutil
 import rdflib
@@ -13,7 +19,15 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class BerlinSparqlBenchmark(BaseDataset):
+class BerlinSparqlBenchmark(
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
+    BaseDataset,
+):
     def __init__(
         self,
         base_dir: Path = Path("./bsbm"),
@@ -60,53 +74,115 @@ class BerlinSparqlBenchmark(BaseDataset):
     def get_encoded_ttl_file(self):
         return self.base_dir / f"{self.full_ttl_file.stem}_encoded.nt"
 
-    def get_available_difficulties(self):
-        return [QUERY_DIFFICULTY.EASY, QUERY_DIFFICULTY.HARD]
+    def get_query_easy_index(self, embedding: DataTensor) -> str:
+        return f"""
+PREFIX dt: <https://w3id.org/rdf-tensor/datatypes#>
+PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
+SELECT ?product  ?vector ?dist
+WHERE {{
+    VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
+SERVICE tensorSearch: {{
+       _:config tensorSearch:numNN 10 ;
+      tensorSearch:left ?query_vector ;
+      tensorSearch:bindDistance ?dist ;
+      tensorSearch:payload ?product ;
+    tensorSearch:experimentalRightCacheName "easy_index_bsbm" ;
+      tensorSearch:right ?vector .
+       {{
+        ?product rdf:label_embedding ?vector .
+        }}
+    }}
+}}
+"""
 
-    def get_queries(
+    def get_query_hard_index(self, embedding: DataTensor) -> str:
+        return """
+PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
+PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
+SELECT ?productA ?productB ?dist ?vectorA ?vectorB
+WHERE {
+?productA bsbmv:productFeature ?featureA .
+?featureA rdf:comment_embedding ?vectorA .
+SERVICE tensorSearch: {
+    _:config tensorSearch:numNN 10 ;
+    tensorSearch:left ?vectorA ;
+    tensorSearch:bindDistance ?dist ;
+    tensorSearch:payload ?productB ;
+    tensorSearch:experimentalRightCacheName "hard_index_bsbm" ;
+    tensorSearch:right ?vectorB .
+    {
+                ?productB bsbmv:productFeature ?featureB .
+                ?featureB rdf:comment_embedding ?vectorB .
+        }
+    }
+} ORDER BY DESC(?dist)
+LIMIT 10
+"""
+
+    def get_query_easy_embedded(
         self,
-        difficulty: QUERY_DIFFICULTY,
-        query_type: QUERY_TYPE,
         embedding: DataTensor,
     ) -> str:
-        # return a list of queries for the dataset based on the difficulty and query type
+        return f"""
+PREFIX dt: <https://w3id.org/rdf-tensor/datatypes#>
+PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+SELECT ?product  ?vector ?dist
+WHERE {{
+?product rdf:label_embedding ?vector .
+BIND(dtf:cosineSimilarity(?vector, {embedding.to_literal().n3()}) AS ?dist) .
+}}
+ORDER BY DESC(?dist)
+LIMIT 10
+"""
 
-        # return a list of queries for the dataset based on the difficulty and query type
-        if difficulty == QUERY_DIFFICULTY.EASY:
-            if query_type == QUERY_TYPE.EMBEDDED:
-                return f"""
-    PREFIX dt: <https://w3id.org/rdf-tensor/datatypes#>
-    PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
-    PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-    PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
-    SELECT ?product  ?vector ?dist
-    WHERE {{
-        ?product rdf:label_embedding ?vector .
-        BIND(dtf:cosineSimilarity(?vector, {embedding.n3()}) AS ?dist) .
-    }}
-    ORDER BY DESC(?dist)
-    LIMIT 10
-    """
-        elif difficulty == QUERY_DIFFICULTY.MEDIUM:
-            raise NotImplementedError(
-                "Medium difficulty queries are not implemented yet"
-            )
-        elif difficulty == QUERY_DIFFICULTY.HARD:
-            if query_type == QUERY_TYPE.EMBEDDED:
-                # For a specific product find 10 other similar products via their most similar features.
-                return """
-                    PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
-                    PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-                    PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
-                    PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-                    SELECT ?productA ?productB ?dist ?vectorA ?vectorB
-                    WHERE {
-                        ?productA bsbmv:productFeature ?featureA .
-                        ?featureA rdf:comment_embedding ?vectorA .
-                        ?productB bsbmv:productFeature ?featureB .
-                        ?featureB rdf:comment_embedding ?vectorB .
-                        BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
-                                    FILTER(?productA != ?productB && ?dist < 1.0)
-                    } ORDER BY DESC(?dist)
-                    LIMIT 10
-                """
+    def get_query_hard_embedded(self, embedding: DataTensor) -> str:
+        return """
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+            PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
+            SELECT ?productA ?productB ?dist ?vectorA ?vectorB
+            WHERE {
+                ?productA bsbmv:productFeature ?featureA .
+                ?productB bsbmv:productFeature ?featureB .
+                ?featureA rdf:comment_embedding ?vectorA .
+                ?featureB rdf:comment_embedding ?vectorB .
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
+                FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
+            } ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_easy_two_stage(self, embedding: DataTensor) -> str:
+        return """
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+            SELECT ?product  ?vector
+            WHERE {
+                ?product rdf:label_embedding ?vector .
+            }
+        """
+
+    def get_query_hard_two_stage(self, embedding: DataTensor) -> str:
+        return """
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+            PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
+            SELECT ?productA ?productB ?vectorA ?vectorB
+            WHERE {
+                ?productA bsbmv:productFeature ?featureA .
+                ?featureA rdf:comment_embedding ?vectorA .
+                ?productB bsbmv:productFeature ?featureB .
+                ?featureB rdf:comment_embedding ?vectorB .
+            }
+        """
