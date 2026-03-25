@@ -3,10 +3,13 @@ name = "dense-kg-vector-db"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     "annoy>=1.17.3",
+    "cmake==3.31.10",
     "jupyter>=1.1.1",
+    "ninja>=1.13.0",
+    "numpy==2.3.3",
     "oxrdflib>=0.5.0",
     "pandas>=3.0.1",
     "rdflib>=7.6.0",

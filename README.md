@@ -11,8 +11,9 @@ Prerequisites:
 ```sh
 git submodule init
 git submodule update
+git submodule sync
 uv sync # assumes uv is installed
-source .venc/bin/activate.fish
+source .venv/bin/activate
 cd faiss
 sh ./install_with_uv.sh 
 ```
