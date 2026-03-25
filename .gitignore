@@ -210,3 +210,6 @@ __marimo__/
 scratch/
 logs/
 _complete.ttl
+*.log
+*.zip
+*.nt*
