@@ -213,3 +213,6 @@ _complete.ttl
 *.log
 *.zip
 *.nt*
+_complete_*.ttl
+_complete.ttl
+benchmarks/data/**/*.nt

@@ -10,8 +10,19 @@ from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
-from ..datasets.base_dataset import BaseDataset
 
+from faiss import IndexFlatL2, IndexIVFFlat
+import time
+
+
+from ..datasets.base_dataset import (
+    BaseDataset,
+    QUERY_TYPE,
+    QUERY_DIFFICULTY,
+    DataTensor,
+    mixin_queries,
+)
+from .dense_index_cache import DenseIndexCache
 
 import subprocess
 
@@ -31,19 +42,41 @@ FLOAT_COMPATIBLE_TYPES = [
     "http://www.w3.org/2001/XMLSchema#decimal",
     # kilogram, seconds
 ]
+two_stage_mixin: dict[QUERY_DIFFICULTY] = {}
+for difficulty in QUERY_DIFFICULTY:
+    class_name = f"{difficulty.value.capitalize()}TwoStageQueryMixin"
+    t = type(
+        class_name,
+        (object,),
+        {
+            f"query_{difficulty.value}_two_stage": abstractmethod(
+                lambda self, embedding: NotImplementedError(
+                    f"query_{difficulty.value}_two_stage not implemented for {self.__class__.__name__}"
+                )
+            )
+        },
+    )
+    two_stage_mixin[difficulty] = t
 
 
-class BaseDB(ABC):
+class BaseDB(
+    two_stage_mixin[QUERY_DIFFICULTY.EASY], two_stage_mixin[QUERY_DIFFICULTY.HARD], ABC
+):
     def __init__(
         self,
         dataset: BaseDataset,
+        id: str,
         endpoint: str | None = None,
         logger_dir=Path("./logs"),
+        prefixes: dict[str, str] | None = None,
+        name: str = __name__,
+        use_encoded_ttl: bool = False,
         *args,
         **kwargs,
     ):
         logger_dir.mkdir(exist_ok=True)
-
+        self.id = id
+        self.name = name
         self.endpoint = (
             endpoint if endpoint is not None else "http://localhost:3030/default/sparql"
         )
@@ -51,15 +84,20 @@ class BaseDB(ABC):
         self.store = SPARQLStore(
             self.endpoint,
             method="POST",
-            timeout=300,
         )
         self.dataset = dataset
-        self.g = rdflib.Graph(store=self.store)
         self.log_file = logger_dir / f"{self.__class__.__name__}.log"
         self.log_file_fd = open(self.log_file, "w")
+        self.prefixes: dict[str, str] = {} if prefixes is None else prefixes
+        self.g = rdflib.Graph(store=self.store)
+        for prefix, uri in self.prefixes.items() | self.dataset.prefixes.items():
+            logger.debug(f"Binding prefix {prefix} to URI {uri}")
+            self.g.bind(prefix, uri)
+        self.dense_cache: DenseIndexCache = DenseIndexCache()
+        self.use_encoded_ttl = use_encoded_ttl
 
     def run_command(self, command: str, allow_fail=False):
-        # logger.info(f"Running command: {command}")
+        logger.debug(f"Running command: {command}")
         self.log_file_fd.write(f"Running command: {command}\n")
         try:
             process = subprocess.run(
@@ -86,22 +124,119 @@ class BaseDB(ABC):
     def stop(self):
         pass
 
+    def wait_for_server(self, timeout=30):
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            try:
+                self.g.query("ASK { ?s ?p ?o }")
+                logger.info("Server is up and responding to queries")
+                return True
+            except Exception as e:
+                logger.debug("Waiting for server to start...")
+                time.sleep(1)
+        raise TimeoutError(f"Server did not start within {timeout} seconds")
+
     def __enter__(self):
         self.setup()
-        logger.info("Database setup complete, entering context manager")
+        logger.debug("Database setup complete, entering context manager")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        logger.info("Exiting context manager, stopping database")
+        logger.debug("Exiting context manager, stopping database")
         self.stop()
 
-    def query(self, sparql_query: str) -> pd.DataFrame:
-        logger.info(
+    def raw_query(self, sparql_query: str) -> Result:
+        logger.debug(
+            f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
+        )
+        qres = self.g.store.query(sparql_query)
+        return qres
+
+    def query_auto(
+        self,
+        tensor: DataTensor | None = None,
+        query_difficulty: QUERY_DIFFICULTY = None,
+        query_type: QUERY_TYPE = QUERY_TYPE.EMBEDDED,
+    ) -> pd.DataFrame:
+        available_queries = self.get_queries(embedding=tensor)
+        if query_difficulty not in available_queries:
+            raise ValueError(
+                f"Query difficulty {query_difficulty} not supported by this database. Supported query difficulties: {list(available_queries.keys())}"
+            )
+        query_types = available_queries[query_difficulty]
+        if query_type not in query_types:
+            raise ValueError(
+                f"Query type {query_type} not supported by this database. Supported query types: {query_types.keys()}"
+            )
+        if query_type == QUERY_TYPE.TWO_STAGE:
+            return self.two_stage_query(
+                query_types[query_type],
+                tensor=tensor,
+                query_difficulty=query_difficulty,
+            )
+        qres = self.g.query(query_types[query_type])
+
+        return self.__q_to_df_values(qres)
+
+    def query(
+        self,
+        sparql_query: str,
+    ) -> pd.DataFrame:
+        logger.debug(
             f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
         )
         qres = self.g.query(sparql_query)
 
         return self.__q_to_df_values(qres)
+
+    # two-stage query generation and execution
+    def query_easy_two_stage(
+        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int
+    ) -> pd.DataFrame:
+        if embedding is None:
+            raise ValueError("Embedding must be provided for two-stage query")
+        query_key = f"{QUERY_DIFFICULTY.EASY.value}_{QUERY_TYPE.TWO_STAGE.value}"
+        distances, indices = self.dense_cache.find_knn(
+            query_key, embedding, k=k, vectors=qres_df["vector"]
+        )
+        qres_df_filtered = qres_df.iloc[indices].copy()
+        qres_df_filtered["dist"] = distances
+        return qres_df_filtered
+
+    def query_hard_two_stage(
+        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int
+    ) -> pd.DataFrame:
+        query_key = f"{QUERY_DIFFICULTY.HARD.value}_{QUERY_TYPE.TWO_STAGE.value}"
+        qres_df["dist"] = 0.0
+        closest_df = pd.DataFrame(columns=qres_df.columns.tolist() + ["dist"])
+        for i, row in qres_df.iterrows():
+            vectorA = DataTensor.from_literal(row["vectorA"])
+            distances, indices = self.dense_cache.find_knn(
+                f"{query_key}_B", vectorA, k=k, vectors=qres_df["vectorB"]
+            )
+            closest_rows = qres_df.iloc[indices].copy()
+            closest_rows["dist"] = distances
+            closest_df = pd.concat([closest_df, closest_rows], ignore_index=True)
+        qres_df_filtered = closest_df.sort_values("dist").head(k)
+        return qres_df_filtered
+
+    def two_stage_query(
+        self,
+        sparql_query: str,
+        tensor: DataTensor | None = None,
+        query_difficulty: QUERY_DIFFICULTY = QUERY_DIFFICULTY.EASY,
+        k: int = 10,
+    ) -> pd.DataFrame:
+        logger.debug(
+            f"Running two-stage SPARQL query: {sparql_query} against endpoint {self.endpoint}"
+        )
+        qres = self.g.query(sparql_query)
+        qres_df = self.__q_to_df_values(qres)
+        if query_difficulty == QUERY_DIFFICULTY.EASY:
+            qres_df_filtered = self.query_easy_two_stage(qres_df, embedding=tensor, k=k)
+        elif query_difficulty == QUERY_DIFFICULTY.HARD:
+            qres_df_filtered = self.query_hard_two_stage(qres_df, embedding=tensor, k=k)
+        return qres_df_filtered
 
     def to_readable_literals(self, cls: str | Literal | URIRef):
         if isinstance(cls, Literal):
@@ -151,10 +286,54 @@ class BaseDB(ABC):
         return pd.DataFrame(results)
 
     def __q_to_df_values(self, qres: Result) -> pd.DataFrame:
+        if isinstance(qres, tuple):
+            logger.error(f"Query failed: {qres}")
         if not qres.vars:
             return pd.DataFrame()
         cols = [str(var) for var in qres.vars]
         results = [dict(zip(cols, row)) for row in qres]  # type: ignore
         results_df = pd.DataFrame(results)
         results_df = results_df.map(self.to_readable)
+        results_df = self.remove_ns_from_df(results_df)
         return results_df
+
+    def remove_prefix(self, uri: str) -> str:
+        for prefix, namespace in self.prefixes.items() | self.dataset.prefixes.items():
+            if uri.startswith(f"<{namespace}"):
+                return f"{prefix}:{uri[len(str(namespace)) + 1 : -1]}"
+        return uri
+
+    def remove_ns_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        df_c = df.copy()
+        for column in df.columns:
+            df_c[column] = df.apply(
+                lambda row: self.remove_prefix(str(row[column])), axis=1
+            )
+        return df_c
+
+    def get_available_query_types(self) -> list[QUERY_TYPE]:
+        return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]
+
+    def get_queries(
+        self,
+        embedding: DataTensor,
+    ) -> dict[QUERY_DIFFICULTY, dict[QUERY_TYPE, str]]:
+        available_query_types = self.get_available_query_types()
+        queries: dict[QUERY_DIFFICULTY, dict[QUERY_TYPE, str]] = {}
+        for difficulty in QUERY_DIFFICULTY:
+            for query_type in available_query_types:
+                if isinstance(self.dataset, mixin_queries[difficulty][query_type]):
+                    if (
+                        not isinstance(self, two_stage_mixin[difficulty])
+                        and query_type == QUERY_TYPE.TWO_STAGE
+                    ):
+                        raise ValueError(
+                            f"Dataset {self.dataset.name} supports two-stage queries, but database {self.__class__.__name__} does not implement {two_stage_mixin[difficulty].__name__}"
+                        )
+                    method_name = f"get_query_{difficulty.value}_{query_type.value}"
+                    method = getattr(self.dataset, method_name)
+                    query = method(embedding)
+                    if difficulty not in queries:
+                        queries[difficulty] = {}
+                    queries[difficulty][query_type] = query
+        return queries

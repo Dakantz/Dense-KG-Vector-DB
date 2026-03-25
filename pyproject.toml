@@ -5,8 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "annoy>=1.17.3",
     "jupyter>=1.1.1",
+    "oxrdflib>=0.5.0",
     "pandas>=3.0.1",
     "rdflib>=7.6.0",
+    "sentence-transformers>=5.3.0",
+    "swig>=4.4.1",
     "tqdm>=4.67.3",
 ]
+

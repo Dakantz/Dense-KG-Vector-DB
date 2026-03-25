@@ -4,3 +4,6 @@
 [submodule "qlever"]
 	path = qlever
 	url = git@github.com:Dakantz/qlever.git
+[submodule "faiss"]
+	path = faiss
+	url = https://github.com/mattiagaggi/faiss.git
