@@ -85,7 +85,7 @@ class QleverDBNative(ExecutableDB):
         except subprocess.CalledProcessError:
             pass
         logger.info(f"Starting QLever server on port {self.port_id}")
-        qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0"
+        qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0 -m 8G --tensor-search-max-num-threads 4"
         logger.info(f"Running command: {qlever_start_cmd}")
         self.server_log_file_fd = open(self.server_log_file, "a")
         self.server = subprocess.Popen(

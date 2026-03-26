@@ -87,18 +87,23 @@ class FusekiDBNative(ExecutableDB):
             self.stop()
 
         self.server_log_file_fd = self.server_log_file.open("a")
-        logger.info(
-            f"Using FUSEKI_HOME={os.environ.get('FUSEKI_HOME')} and TENSOR_CP={os.environ.get('TENSOR_CP')}"
-        )
+        tensor_cp = os.environ.get("TENSOR_CP")
+        if tensor_cp is None:
+            logger.error("TENSOR_CP environment variable is not set")
+            tensor_cp = Path(self.exec_dir) / "jena-datatensor" / "target/*"
+            tensor_cp = tensor_cp.resolve()
+            logger.info(f"Using default TENSOR_CP={tensor_cp}")
+
         fuseki_home = os.environ.get("FUSEKI_HOME")
         if fuseki_home is None:
             logger.error("FUSEKI_HOME environment variable is not set")
             fuseki_home = os.getenv("HOME")
             fuseki_home = Path(fuseki_home) / "apache-jena-fuseki-5.2.0"
-            fuseki_home = fuseki_home.absolute()
+            fuseki_home = fuseki_home.resolve()
             logger.info(f"Using default FUSEKI_HOME={fuseki_home}")
+        logger.info(f"Using FUSEKI_HOME={fuseki_home} and TENSOR_CP={tensor_cp}")
         self.server = subprocess.Popen(
-            f"FUSEKI_HOME={fuseki_home} TENSOR_CP=./jena-datatensor/target ./custom-fuseki-server -loc={self.db_dir.absolute()} --port {self.port_id} /{self.id}",
+            f"FUSEKI_HOME={fuseki_home} TENSOR_CP={tensor_cp} ./custom-fuseki-server -loc={self.db_dir.absolute()} --port {self.port_id} /{self.id}",
             shell=True,
             cwd=self.exec_dir,
             stdout=self.server_log_file_fd,

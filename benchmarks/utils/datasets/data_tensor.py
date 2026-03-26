@@ -4,6 +4,24 @@ import json
 from rdflib import Literal as RDFLiteral
 import numpy as np
 
+import simplejson
+
+
+# from https://stackoverflow.com/a/1733105
+class PrettyFloat(float):
+    def __repr__(self):
+        return "%.15g" % self
+
+
+def pretty_floats(obj):
+    if isinstance(obj, float):
+        return PrettyFloat(obj)
+    elif isinstance(obj, dict):
+        return dict((k, pretty_floats(v)) for k, v in obj.items())
+    elif isinstance(obj, (list, tuple)):
+        return list(map(pretty_floats, obj))
+    return obj
+
 
 @dataclass
 class DataTensor:
@@ -36,12 +54,14 @@ class DataTensor:
         )
 
     def to_literal(self) -> RDFLiteral:
-        json_str = json.dumps(
-            {
-                "data": self.data,
-                "type": self.type,
-                "shape": self.shape,
-            }
+        json_str = simplejson.dumps(
+            pretty_floats(
+                {
+                    "data": self.data,
+                    "type": self.type,
+                    "shape": self.shape,
+                }
+            )
         )
         return RDFLiteral(
             json_str, datatype="https://w3id.org/rdf-tensor/datatypes#NumericDataTensor"

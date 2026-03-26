@@ -17,6 +17,7 @@ dependencies = [
     "pillow>=12.1.1",
     "rdflib>=7.6.0",
     "sentence-transformers>=5.3.0",
+    "simplejson>=3.20.2",
     "swig>=4.4.1",
     "tikzplotlib-patched>=0.10.1.post13",
     "tqdm>=4.67.3",
