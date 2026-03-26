@@ -8,6 +8,7 @@ dependencies = [
     "annoy>=1.17.3",
     "cmake==3.31.10",
     "datasets>=4.8.4",
+    "dotenv>=0.9.9",
     "jupyter>=1.1.1",
     "ninja>=1.13.0",
     "numpy==2.3.3",

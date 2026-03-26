@@ -10,7 +10,7 @@ import pandas
 import rdflib.store
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
-from .base_db import BaseDB
+from .executable_db import ExecutableDB
 from ..datasets.base_dataset import BaseDataset, QUERY_TYPE, DataTensor
 import shutil
 from pathlib import Path
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class QleverDBNative(BaseDB):
-    port_id: int = 6030
+class QleverDBNative(ExecutableDB):
+    port_id: int = 8030
 
     def __init__(
         self,
@@ -33,21 +33,17 @@ class QleverDBNative(BaseDB):
         name: str = "QLever Native (Extended)",
         port_offset: int = 0,
     ):
-        port_id = self.port_id + 1 + port_offset
-        endpoint = f"http://localhost:{port_id}/{id}/sparql"
         super().__init__(
             id=id,
+            port_id=self.port_id + 1 + port_offset,
             dataset=dataset,
-            endpoint=endpoint,
             name=name,
             use_encoded_ttl=use_encoded_ttl,
+            base_dir=base_dir,
         )
-        self.base_dir = base_dir
-        self.db_dir = base_dir / id
-        self.port_id = port_id
-        self.server: subprocess.Popen | None = None
-        self.server_log_file = self.base_dir / f"container_{port_id}_{id}.log"
-        self.server_log_file_fd: TextIOWrapper | None = None
+        logger.info(
+            f"Initialized QLeverDBNative with id={id}, port_id={self.port_id}, dataset={dataset.name}, name={name}, use_encoded_ttl={use_encoded_ttl}, endpoint={self.endpoint}"
+        )
 
     def setup(self):
         # load the dataset into the QLever server
@@ -81,7 +77,7 @@ class QleverDBNative(BaseDB):
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
             self.run_command(
-                f"qlever-index -f {full_ttl} -i {self.id}'",
+                f"qlever-index -f {full_ttl.absolute()} -i {self.id}",
                 cwd=self.db_dir,
             )
         try:
@@ -100,13 +96,6 @@ class QleverDBNative(BaseDB):
             stderr=self.server_log_file_fd,
         )
         self.wait_for_server(timeout=120)
-
-    def stop(self):
-        logger.info("Stopping server!")
-        if self.server is not None:
-            self.server.kill()
-        if self.server_log_file_fd is not None:
-            self.server_log_file_fd.close()
 
     def get_available_query_types(self) -> list[QUERY_TYPE]:
         return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]

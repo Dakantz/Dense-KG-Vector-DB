@@ -22,8 +22,6 @@ logger.setLevel(logging.INFO)
 
 
 class QleverDB(BaseDocker):
-    port_id: int = 5030
-
     def __init__(
         self,
         base_dir: Path,
@@ -32,12 +30,10 @@ class QleverDB(BaseDocker):
         use_encoded_ttl: bool = False,
         name: str = "QLever (Extended)",
     ):
-        port_id = self.port_id + 1
-        endpoint = f"http://localhost:{port_id}/{id}/sparql"
         super().__init__(
             id=id,
+            port_id=5030,
             dataset=dataset,
-            endpoint=endpoint,
             container_name=f"qlever_benchmarks_{id}",
             name=name,
             base_dir=base_dir,
@@ -45,7 +41,6 @@ class QleverDB(BaseDocker):
             docker_image="qlever:tensors",
             use_encoded_ttl=use_encoded_ttl,
         )
-        self.port_id = port_id
         self.server: subprocess.Popen | None = None
 
     def setup(self):

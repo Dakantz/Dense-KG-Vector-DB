@@ -22,14 +22,16 @@ mkdir index
 docker run --rm -v ./index:/data -v ./:/ttl -e UID=501 -e GID=220 -w /data qlever:tensors 'qlever-index -f /ttl/dbpedia_complete.nt -i dbpedia -m 1GB'
 cd ..
 
+
 ```
 
 Then encode the dataset (i.e. all image data) you can use
 ```sh
 # assuming you are in benchmarks
-python encode_dbpedia.py
+```sh
+for datafile_id in {0..330}; do python encode_dbpedia.py --out-dir ./data/dbpedia/encoded_thumbnails --dbpedia-dir ./data/dbpedia/index --datafile ${datafile_id} --batch-size 4
 ```
 This may take some time, you can parallelize the encoding on a slurm cluster using 
-```
+```sh
 sbatch encode_dbpedia.sh
 ```

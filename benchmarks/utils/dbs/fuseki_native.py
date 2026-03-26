@@ -6,48 +6,46 @@ import pandas
 import rdflib.store
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
-from .base_docker import BaseDocker
+from .executable_db import ExecutableDB
 from ..datasets.base_dataset import BaseDataset, QUERY_TYPE, DataTensor
 import shutil
 from pathlib import Path
 import rdflib
 import subprocess
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-class FusekiDB(BaseDocker):
+class FusekiDBNative(ExecutableDB):
+    port_id: int = 7030
+
     def __init__(
         self,
         base_dir: Path,
         dataset: BaseDataset,
         id: str = "default",
-        build_dir: Path = Path("../jena-datatensor"),
+        exec_dir: Path = Path("../jena-datatensor"),
         use_encoded_ttl: bool = False,
         do_image_build: bool = False,
         name: str = "FusekiDB + RDFTensor",
+        port_offset: int = 0,
     ):
         super().__init__(
             id=id,
-            dataset=dataset,
-            port_id=3030,
-            container_name=f"fuseki_benchmarks_{id}",
-            name=name,
+            port_id=self.port_id + 1 + port_offset,
             base_dir=base_dir,
-            docker_image="jena-datatensor",
-            db_dir=base_dir / "fuseki_db",
+            dataset=dataset,
+            name=name,
             use_encoded_ttl=use_encoded_ttl,
-            do_image_build=do_image_build,
-            build_dir=build_dir,
         )
-        self.server: subprocess.Popen | None = None
+        self.exec_dir = exec_dir
 
     def setup(self):
         # load the dataset into the Fuseki server using the command line tool from the ttls from the dataset
         # by generating tdb2 file and then starting the docker container with the tdb2 file as volume
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.build_image()
         logger.info(
             f"Loading dataset into Fuseki server from {self.dataset.get_ttl_file()}"
         )
@@ -77,29 +75,36 @@ class FusekiDB(BaseDocker):
                     (item / "tdb.lock").unlink(missing_ok=True)
         else:
             self.run_command(
-                f"docker run --rm -v {self.db_dir.absolute()}:/tdb -v {full_ttl.parent.absolute()}:/ttl {self.docker_image} tdb2.tdbloader --loc /tdb /ttl/{full_ttl.name}"
+                f"tdb2.tdbloader --loc {self.db_dir.absolute()} {full_ttl.absolute()}",
             )
         try:
             self.stop()
         except subprocess.CalledProcessError:
             pass
+        logger.info(f"Starting Fuseki server port {self.port_id}")
+        if self.server is not None:
+            logger.warning("Server is already running, stopping it first")
+            self.stop()
+
+        self.server_log_file_fd = self.server_log_file.open("a")
         logger.info(
-            f"Starting Fuseki server with container name {self.docker_container_name} on port {self.port_id}"
+            f"Using FUSEKI_HOME={os.environ.get('FUSEKI_HOME')} and TENSOR_CP={os.environ.get('TENSOR_CP')}"
         )
+        fuseki_home = os.environ.get("FUSEKI_HOME")
+        if fuseki_home is None:
+            logger.error("FUSEKI_HOME environment variable is not set")
+            fuseki_home = os.getenv("HOME")
+            fuseki_home = Path(fuseki_home) / "apache-jena-fuseki-5.2.0"
+            fuseki_home = fuseki_home.absolute()
+            logger.info(f"Using default FUSEKI_HOME={fuseki_home}")
         self.server = subprocess.Popen(
-            f"docker run --name {self.docker_container_name} -p {self.port_id}:3030 -v {self.db_dir.absolute()}:/data {self.docker_image} custom-fuseki-server -loc=/data /{self.id}",
+            f"FUSEKI_HOME={fuseki_home} TENSOR_CP=./jena-datatensor/target ./custom-fuseki-server -loc={self.db_dir.absolute()} --port {self.port_id} /{self.id}",
             shell=True,
-            stdout=self.container_log_file_fd,
-            stderr=self.container_log_file_fd,
+            cwd=self.exec_dir,
+            stdout=self.server_log_file_fd,
+            stderr=self.server_log_file_fd,
         )
         self.wait_for_server()
-
-    def stop(self):
-        logger.info(f"Stopping server with container name {self.docker_container_name}")
-        if self.server is not None:
-            self.server.kill()
-        self.run_command(f"docker stop {self.docker_container_name}", allow_fail=True)
-        self.run_command(f"docker rm -f {self.docker_container_name}", allow_fail=True)
 
     def get_available_query_types(self) -> list[QUERY_TYPE]:
         return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.TWO_STAGE]

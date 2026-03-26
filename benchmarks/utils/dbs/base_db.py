@@ -65,6 +65,7 @@ class BaseDB(
         self,
         dataset: BaseDataset,
         id: str,
+        port_id: int = 3333,
         endpoint: str | None = None,
         logger_dir=Path("./logs"),
         prefixes: dict[str, str] | None = None,
@@ -75,12 +76,11 @@ class BaseDB(
         **kwargs,
     ):
         logger_dir.mkdir(exist_ok=True)
+        self.port_id = port_id
+        self.endpoint = f"http://localhost:{self.port_id}/{id}/sparql"
         self.id = id
         self.timeout = timeout
         self.name = name
-        self.endpoint = (
-            endpoint if endpoint is not None else "http://localhost:3030/default/sparql"
-        )
 
         self.store = SPARQLStore(
             self.endpoint,
@@ -134,7 +134,9 @@ class BaseDB(
                 logger.info("Server is up and responding to queries")
                 return True
             except Exception as e:
-                logger.debug("Waiting for server to start...")
+                logger.info(
+                    f"Waiting for server to start..., got error: {e} ({self.endpoint})"
+                )
                 time.sleep(1)
         raise TimeoutError(f"Server did not start within {timeout} seconds")
 
@@ -197,6 +199,9 @@ class BaseDB(
         )
 
         def query_operation():
+            logger.debug(
+                f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
+            )
             qres = self.g.query(sparql_query)
             return self.__q_to_df_values(qres, remove_ns=remove_ns)
 
