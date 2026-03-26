@@ -191,6 +191,7 @@ class BaseDB(
     def query(
         self,
         sparql_query: str,
+        remove_ns: bool = True,
     ) -> pd.DataFrame:
         logger.debug(
             f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
@@ -198,7 +199,7 @@ class BaseDB(
 
         def query_operation():
             qres = self.g.query(sparql_query)
-            return self.__q_to_df_values(qres)
+            return self.__q_to_df_values(qres, remove_ns=remove_ns)
 
         return run_with_timeout(query_operation, timeout=self.timeout)
 
@@ -298,7 +299,7 @@ class BaseDB(
         # )
         return pd.DataFrame(results)
 
-    def __q_to_df_values(self, qres: Result) -> pd.DataFrame:
+    def __q_to_df_values(self, qres: Result, remove_ns: bool = True) -> pd.DataFrame:
         if isinstance(qres, tuple):
             logger.error(f"Query failed: {qres}")
         if not qres.vars:
@@ -307,7 +308,8 @@ class BaseDB(
         results = [dict(zip(cols, row)) for row in qres]  # type: ignore
         results_df = pd.DataFrame(results)
         results_df = results_df.map(self.to_readable)
-        results_df = self.remove_ns_from_df(results_df)
+        if remove_ns:
+            results_df = self.remove_ns_from_df(results_df)
         return results_df
 
     def remove_prefix(self, uri: str) -> str:
