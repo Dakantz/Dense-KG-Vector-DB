@@ -31,20 +31,23 @@ class QleverDBNative(BaseDB):
         id: str = "default",
         use_encoded_ttl: bool = False,
         name: str = "QLever Native (Extended)",
+        port_offset: int = 0,
     ):
-        port_id = self.port_id + 1
+        port_id = self.port_id + 1 + port_offset
         endpoint = f"http://localhost:{port_id}/{id}/sparql"
         super().__init__(
             id=id,
             dataset=dataset,
             endpoint=endpoint,
             name=name,
-            base_dir=base_dir,
-            db_dir=base_dir / "qlever_db",
             use_encoded_ttl=use_encoded_ttl,
         )
+        self.base_dir = base_dir
+        self.db_dir = base_dir / id
         self.port_id = port_id
         self.server: subprocess.Popen | None = None
+        self.server_log_file = self.base_dir / f"container_{port_id}_{id}.log"
+        self.server_log_file_fd: TextIOWrapper | None = None
 
     def setup(self):
         # load the dataset into the QLever server
@@ -57,8 +60,6 @@ class QleverDBNative(BaseDB):
             if self.use_encoded_ttl
             else self.dataset.get_ttl_file()
         )
-        uid = os.getuid()
-        gid = os.getgid() + 200  # macos ???
         has_index = (
             self.db_dir.exists()
             and len(
@@ -87,29 +88,25 @@ class QleverDBNative(BaseDB):
             self.stop()
         except subprocess.CalledProcessError:
             pass
-        logger.info(
-            f"Starting QLever server with container name {self.docker_container_name} on port {self.port_id}"
-        )
+        logger.info(f"Starting QLever server on port {self.port_id}")
         qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0"
         logger.info(f"Running command: {qlever_start_cmd}")
-        self.container_log_file_fd = open(self.container_log_file, "a")
+        self.server_log_file_fd = open(self.server_log_file, "a")
         self.server = subprocess.Popen(
             qlever_start_cmd,
             cwd=self.db_dir,
             shell=True,
-            stdout=self.container_log_file_fd,
-            stderr=self.container_log_file_fd,
+            stdout=self.server_log_file_fd,
+            stderr=self.server_log_file_fd,
         )
         self.wait_for_server(timeout=120)
 
     def stop(self):
-        logger.info(f"Stopping server with container name {self.docker_container_name}")
+        logger.info("Stopping server!")
         if self.server is not None:
             self.server.kill()
-        self.run_command(f"docker stop {self.docker_container_name}", allow_fail=True)
-        self.run_command(f"docker rm -f {self.docker_container_name}", allow_fail=True)
-        if self.container_log_file_fd is not None:
-            self.container_log_file_fd.close()
+        if self.server_log_file_fd is not None:
+            self.server_log_file_fd.close()
 
     def get_available_query_types(self) -> list[QUERY_TYPE]:
         return [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]

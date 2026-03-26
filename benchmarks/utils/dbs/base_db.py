@@ -11,7 +11,6 @@ from rdflib.query import Result
 from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
-from faiss import IndexFlatL2, IndexIVFFlat
 import time
 from .utils import run_with_timeout
 

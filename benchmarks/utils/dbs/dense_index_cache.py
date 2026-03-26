@@ -1,6 +1,25 @@
 from re import search
 
-import faiss
+try:
+    import faiss
+
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+    print(
+        "Warning: Faiss library is not available. Dense index caching will be disabled."
+    )
+
+    class faiss:
+        class IndexFlatIP:
+            def __init__(self, dim):
+                raise NotImplementedError("Faiss library is not available.")
+
+        class IndexIVFFlat:
+            def __init__(self, quantizer, dim, trees):
+                raise NotImplementedError("Faiss library is not available.")
+
+
 import logging
 import pandas as pd
 import numpy as np
