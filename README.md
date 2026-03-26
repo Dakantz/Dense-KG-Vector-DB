@@ -8,6 +8,16 @@ Prerequisites:
 * `uv`
 * `docker`
 
+### Install Dependencies (Ubuntu/Debian)
+
+```sh
+apt install -y libboost1.88-dev libboost-iostreams1.88-dev libboost-random1.88-dev libboost-program-options1.88-dev libboost-url1.88-dev libboost-container1.88-dev libopenblas-dev
+```
+
+
+### Setup environment
+
+
 ```sh
 git submodule init
 git submodule update

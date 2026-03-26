@@ -13,14 +13,18 @@ from rdflib.term import Node
 import gzip
 import bz2
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from pathlib import Path
 
 
-def parse_nt_to_generator(source: str, buffer=10) -> Generator[tuple[Node, Node, Node]]:
+def parse_nt_to_generator(
+    source: str | Path, buffer=10
+) -> Generator[tuple[Node, Node, Node]]:
     q = Queue(maxsize=buffer)
+    source = Path(source)
     assert (
-        source.endswith(".nt")
-        or source.endswith(".nt.gz")
-        or source.endswith(".nt.bz2")
+        source.name.endswith(".nt")
+        or source.name.endswith(".nt.gz")
+        or source.name.endswith(".nt.bz2")
     ), "Source file must be a .nt, .nt.gz, or .nt.bz2 file"
 
     class TripleStream:
@@ -38,15 +42,14 @@ def parse_nt_to_generator(source: str, buffer=10) -> Generator[tuple[Node, Node,
                 self.parse_line(line)
 
     def task():
-
-        if source.endswith(".gz"):
+        if source.name.endswith(".gz"):
             with gzip.open(source, "rt") as f:
                 # skip the header
                 f.readline()
 
                 g = TripleStream()
                 g.parse(f)
-        elif source.endswith(".bz2"):
+        elif source.name.endswith(".bz2"):
             with bz2.open(source, "rt") as f:
                 # skip the header
                 f.readline()
@@ -73,20 +76,26 @@ def parse_nt_to_generator(source: str, buffer=10) -> Generator[tuple[Node, Node,
 
 
 def save_from_generator(
-    destination: str, generator: Generator[tuple[Node, Node, Node]]
+    destination: str | Path, generator: Generator[tuple[Node, Node, Node]]
 ):
-    if destination.endswith(".gz"):
+    destination = Path(destination)
+    counter = 0
+    if destination.name.endswith(".gz"):
         with gzip.open(destination, "wt") as f:
             for triple in generator:
+                counter += 1
                 output_rdf_triple(f, triple)
-    elif destination.endswith(".bz2"):
+    elif destination.name.endswith(".bz2"):
         with bz2.open(destination, "wt") as f:
             for triple in generator:
+                counter += 1
                 output_rdf_triple(f, triple)
     else:
         with open(destination, "w") as f:
             for triple in generator:
+                counter += 1
                 output_rdf_triple(f, triple)
+    return counter
 
 
 def output_rdf_triple(fd: TextIOWrapper, triple: tuple[Node, Node, Node]):

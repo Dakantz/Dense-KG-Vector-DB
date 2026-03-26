@@ -3,17 +3,18 @@ from dataclasses import dataclass
 import json
 import logging
 from pathlib import Path
-from typing import Literal, Optional, Tuple, Any
+from typing import Generator, Literal, Optional, Tuple, Any
 import os
 import oxrdflib
 import rdflib
 from sentence_transformers import SentenceTransformer
 import numpy as np
-from rdflib import Literal as RDFLiteral
+from rdflib import Literal as RDFLiteral, Node
 from tqdm import tqdm
 from zmq import Enum
 import pandas as pd
 from .data_tensor import DataTensor
+from .utils import parse_nt_to_generator, save_from_generator
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +92,48 @@ class BaseDataset(ABC):
 
     def get_encoded_ttl_file(self) -> Path:
         return self.base_dir / "_complet_encoded.ttl"
+
+    def encode_streaming(
+        self, model: SentenceTransformer, batch_size=64, force_reencode=False
+    ):
+        # load triples from ttl file, encode the #label using the provided model, and save the embeddings to a new .ttl file with the same structure but with an additional triple for the embedding
+        if self.get_encoded_ttl_file().exists() and not force_reencode:
+            print(
+                f"Encoded TTL file already exists at {self.get_encoded_ttl_file()}, skipping encoding"
+            )
+            return
+
+        def generate_triples(
+            source: Path, batch_size: int
+        ) -> Generator[tuple[Node, Node, Node]]:
+            ttl_source = parse_nt_to_generator(source)
+            batch_collector = []
+            for triple in tqdm(ttl_source, desc="Encoding triples"):
+                s, p, o = triple
+                yield triple
+                if str(p).endswith("#label") or str(p).endswith("#comment"):
+                    batch_collector.append((s, p, o))
+                if len(batch_collector) >= batch_size:
+                    embeddings = model.encode(
+                        [str(o) for _, _, o in batch_collector],
+                        convert_to_numpy=True,
+                        show_progress_bar=False,
+                    )
+                    for (s, p, o), embedding in zip(batch_collector, embeddings):
+                        embedding_dt = DataTensor.from_numpy(embedding)
+                        embedding_literal = embedding_dt.to_literal()
+                        yield (
+                            s,
+                            rdflib.URIRef(str(p) + "_embedding"),
+                            embedding_literal,
+                        )
+                    batch_collector = []
+
+        counter = save_from_generator(
+            self.get_encoded_ttl_file(),
+            generate_triples(self.get_ttl_file(), batch_size),
+        )
+        return counter
 
     def encode(self, model: SentenceTransformer, batch_size=32, force_reencode=False):
         # load triples from ttl file, encode the #label using the provided model, and save the embeddings to a new .ttl file with the same structure but with an additional triple for the embedding
