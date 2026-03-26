@@ -27,7 +27,7 @@ class FusekiDB(BaseDocker):
         id: str = "default",
         build_dir: Path = Path("../jena-datatensor"),
         use_encoded_ttl: bool = False,
-        do_image_build: bool = True,
+        do_image_build: bool = False,
         name: str = "FusekiDB + RDFTensor",
     ):
         port_id = self.port_id + 1

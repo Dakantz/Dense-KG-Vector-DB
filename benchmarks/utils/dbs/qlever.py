@@ -81,8 +81,11 @@ class QleverDB(BaseDocker):
             #     if item.is_dir():
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
+            logger.info(
+                f"Running command to create index: qlever-index -f {full_ttl} -i {self.id} -m 8G"
+            )
             self.run_command(
-                f"docker run --rm -v {self.db_dir.absolute()}:/data -v {full_ttl.parent.absolute()}:/ttl -e UID={uid} -e GID={gid} -w /data {self.docker_image} 'qlever-index -f /ttl/{full_ttl.name} -i {self.id}'",
+                f"docker run --rm -v {self.db_dir.absolute()}:/data -v {full_ttl.parent.absolute()}:/ttl -e UID={uid} -e GID={gid} -w /data {self.docker_image} 'qlever-index -f /ttl/{full_ttl.name} -i {self.id} -m 8G'",
             )
         try:
             self.stop()
@@ -91,7 +94,7 @@ class QleverDB(BaseDocker):
         logger.info(
             f"Starting QLever server with container name {self.docker_container_name} on port {self.port_id}"
         )
-        docker_start_cmd = f"docker run --name {self.docker_container_name} -e UID={uid} -e GID={gid} -p {self.port_id}:5030 -v {self.db_dir.absolute()}:/data -w /data  {self.docker_image} 'qlever-server -i {self.id} --port 5030 -k 0'"
+        docker_start_cmd = f"docker run --name {self.docker_container_name} -e UID={uid} -e GID={gid} -p {self.port_id}:5030 -v {self.db_dir.absolute()}:/data -w /data  {self.docker_image} 'qlever-server -o -i {self.id} --port 5030 -k 0'"
         logger.info(f"Running command: {docker_start_cmd}")
         self.container_log_file_fd = open(self.container_log_file, "a")
         self.server = subprocess.Popen(
