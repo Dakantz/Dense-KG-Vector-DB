@@ -216,3 +216,10 @@ _complete.ttl
 _complete_*.ttl
 _complete.ttl
 benchmarks/data/**/*.nt
+benchmarks/data/**/*.bz2
+benchmarks/data/**/*.bzip2
+benchmarks/data/**/*.ttl
+*.index*
+*.meta-data.json
+*.vocabulary*
+*.tar.gz
