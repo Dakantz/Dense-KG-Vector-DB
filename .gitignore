@@ -216,3 +216,6 @@ _complete.ttl
 _complete_*.ttl
 _complete.ttl
 benchmarks/data/**/*.nt
+*.index*
+*.meta-data.json
+*.vocabulary*

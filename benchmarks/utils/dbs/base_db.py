@@ -13,7 +13,7 @@ from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
 from faiss import IndexFlatL2, IndexIVFFlat
 import time
-
+from .utils import run_with_timeout
 
 from ..datasets.base_dataset import (
     BaseDataset,
@@ -71,11 +71,13 @@ class BaseDB(
         prefixes: dict[str, str] | None = None,
         name: str = __name__,
         use_encoded_ttl: bool = False,
+        timeout: int = 30,
         *args,
         **kwargs,
     ):
         logger_dir.mkdir(exist_ok=True)
         self.id = id
+        self.timeout = timeout
         self.name = name
         self.endpoint = (
             endpoint if endpoint is not None else "http://localhost:3030/default/sparql"
@@ -149,8 +151,12 @@ class BaseDB(
         logger.debug(
             f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
         )
-        qres = self.g.store.query(sparql_query)
-        return qres
+
+        def query_operation():
+            qres = self.g.store.query(sparql_query)
+            return qres
+
+        return run_with_timeout(query_operation, timeout=self.timeout)
 
     def query_auto(
         self,
@@ -174,9 +180,12 @@ class BaseDB(
                 tensor=tensor,
                 query_difficulty=query_difficulty,
             )
-        qres = self.g.query(query_types[query_type])
 
-        return self.__q_to_df_values(qres)
+        def query_operation():
+            qres = self.g.query(query_types[query_type])
+            return self.__q_to_df_values(qres)
+
+        return run_with_timeout(query_operation, timeout=self.timeout)
 
     def query(
         self,
@@ -185,9 +194,12 @@ class BaseDB(
         logger.debug(
             f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
         )
-        qres = self.g.query(sparql_query)
 
-        return self.__q_to_df_values(qres)
+        def query_operation():
+            qres = self.g.query(sparql_query)
+            return self.__q_to_df_values(qres)
+
+        return run_with_timeout(query_operation, timeout=self.timeout)
 
     # two-stage query generation and execution
     def query_easy_two_stage(
