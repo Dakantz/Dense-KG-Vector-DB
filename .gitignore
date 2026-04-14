@@ -216,9 +216,12 @@ _complete.ttl
 _complete_*.ttl
 _complete.ttl
 benchmarks/data/**/*.nt
+benchmarks/data/**/index*
 benchmarks/data/**/*.bz2
 benchmarks/data/**/*.bzip2
 benchmarks/data/**/*.ttl
+Data-0001
+tdb.lock
 *.index*
 *.meta-data.json
 *.vocabulary*

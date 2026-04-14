@@ -1,11 +1,17 @@
 # %%
 from rdflib import Literal, URIRef
 
+import sys
+
+import rdflib
+
+sys.path.append("./")
+
 from utils.datasets.utils import parse_nt_to_generator, save_from_generator
 from utils.datasets.dbpedia import DBPedia
-from pathlib import Path
 from utils.dbs.base_db import BaseDB
 from utils.dbs.qlever_native import QleverDBNative
+from pathlib import Path
 import pandas as pd
 from PIL import Image
 
@@ -19,6 +25,7 @@ import requests
 from utils.datasets.data_tensor import DataTensor
 import pyarrow.parquet as pq
 import pandas as pd
+import torch
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dbpedia-dir", default="./data/dbpedia")
@@ -79,19 +86,20 @@ def en_data(wit_feature: dict) -> dict:
 
 
 def urls_in_dbpedia(rows: pd.DataFrame, db: BaseDB) -> dict[int, list[str]]:  #
-    titles = {id: row["en_wit_features"]["page_title"] for id, row in rows.iterrows()}
+    features = {id: row["en_wit_features"] for id, row in rows.iterrows()}
 
-    values = " ".join(f" ({id} {Literal(title).n3()})" for id, title in titles.items())
+    values = " ".join(
+        f" ({id} {rdflib.URIRef(feature['page_url'].replace('https', 'http')).n3()})"
+        for id, feature in features.items()
+    )
 
-    subjs = db.query(f"""SELECT ?s ?id ?thumb ?title ?label WHERE {{
-        ?s dbo:thumbnail  ?thumb.
+    subjs = db.query(f"""SELECT ?s ?id ?wikipage WHERE {{
+        ?s <http://xmlns.com/foaf/0.1/isPrimaryTopicOf> ?wikipage .
         ?s rdfs:label ?label .
-        VALUES (?id ?title) {{ {values} }}
-        FILTER(CONTAINS(?label, ?title))
+        VALUES (?id ?wikipage) {{ {values} }}
     }}""")
     # filter out only equal matches
-    subjs = subjs[subjs.apply(lambda row: row["label"] == row["title"], axis=1)]
-
+    # subjs = subjs[subjs.apply(lambda row: row["label"] == row["title"], axis=1)]
     subjs["id"] = subjs["id"].astype(int)
     return subjs
 
@@ -127,6 +135,14 @@ def encode_dbpedia_thumbnails(
             URIRef(s.replace("dbr:", "http://dbpedia.org/resource/")),
             URIRef(f"{thumbnail_predicate}_embedding"),
             DataTensor.from_numpy(row["encoding"]).to_literal(),
+        )
+        for _, row in df_batch.iterrows()
+        for s in row["dbpedia_subjects"]
+    ] + [
+        (
+            URIRef(s.replace("dbr:", "http://dbpedia.org/resource/")),
+            URIRef(f"{thumbnail_predicate}_original"),
+            URIRef(row["image_url"]),
         )
         for _, row in df_batch.iterrows()
         for s in row["dbpedia_subjects"]
@@ -178,8 +194,15 @@ def generate_triples_for_datafile_id(
 
 if __name__ == "__main__":
     # %%
+    print(f"Processing datafile {args.datafile:05d}...")
+    print(f"Using model {args.model} for encoding...")
+    print(f"Saving encoded triples to {args.out_dir}...")
+    print(f"Using {'native' if args.use_native else 'dockerized'} Qlever DB...")
+    print(f"Batch size for encoding: {args.batch_size}...")
 
-    model = SentenceTransformer(args.model)
+    model = SentenceTransformer(
+        args.model, device="cuda" if torch.cuda.is_available() else "cpu"
+    )
     dataset = DBPedia(base_dir=Path(args.dbpedia_dir))
     db = QleverDBNative(
         dataset=dataset,
