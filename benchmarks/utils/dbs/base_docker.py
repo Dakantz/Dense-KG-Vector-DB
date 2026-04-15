@@ -17,7 +17,7 @@ from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
-from test.test_reprlib import r
+
 from ..datasets.base_dataset import BaseDataset
 from .base_db import BaseDB
 

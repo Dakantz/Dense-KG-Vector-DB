@@ -47,7 +47,7 @@ class ExecutableDB(BaseDB):
             **kwargs,
         )
         self.base_dir = base_dir if base_dir is not None else Path("./scratch") / id
-        self.db_dir = db_dir if db_dir is not None else self.base_dir / "db"
+        self.db_dir = db_dir if db_dir is not None else self.base_dir / "db" / id
         if not self.db_dir.exists():
             self.db_dir.mkdir(parents=True, exist_ok=True)
         self.server_log_file = self.db_dir / f"{self.id}_run.log"

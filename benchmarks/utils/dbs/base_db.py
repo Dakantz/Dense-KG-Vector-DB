@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from io import TextIOWrapper
 import logging
 from pathlib import Path
 
@@ -97,16 +98,24 @@ class BaseDB(
         self.dense_cache: DenseIndexCache = DenseIndexCache()
         self.use_encoded_ttl = use_encoded_ttl
 
-    def run_command(self, command: str, allow_fail=False, cwd: Path | None = None):
+    def run_command(
+        self,
+        command: str,
+        allow_fail=False,
+        cwd: Path | None = None,
+        log_file_fd: TextIOWrapper | None = None,
+    ):
         logger.debug(f"Running command: {command}")
         self.log_file_fd.write(f"Running command: {command}\n")
+        log_file = log_file_fd or self.log_file_fd
+        log_file.write(f"Running command: {command}\n")
         try:
             process = subprocess.run(
                 command,
                 shell=True,
                 check=True,
-                stdout=self.log_file_fd,
-                stderr=self.log_file_fd,
+                stdout=log_file_fd,
+                stderr=log_file_fd,
                 errors="replace",
                 cwd=cwd,
             )
