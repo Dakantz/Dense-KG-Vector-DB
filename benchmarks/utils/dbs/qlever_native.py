@@ -32,15 +32,17 @@ class QleverDBNative(ExecutableDB):
         use_encoded_ttl: bool = False,
         name: str = "QLever Native (Extended)",
         port_offset: int = 0,
+        enable_tensor_index: bool = True,
     ):
         super().__init__(
-            id=id,
+            id=id + ("-with-tidx" if enable_tensor_index else "-no-tidx"),
             port_id=self.port_id + 1 + port_offset,
             dataset=dataset,
             name=name,
             use_encoded_ttl=use_encoded_ttl,
             base_dir=base_dir,
         )
+        self.enable_tensor_index = enable_tensor_index
         logger.info(
             f"Initialized QLeverDBNative with id={id}, port_id={self.port_id}, dataset={dataset.name}, name={name}, use_encoded_ttl={use_encoded_ttl}, endpoint={self.endpoint}"
         )
@@ -48,6 +50,7 @@ class QleverDBNative(ExecutableDB):
     def setup(self):
         # load the dataset into the QLever server
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.server_log_file_fd = open(self.server_log_file, "a")
         logger.info(
             f"Loading dataset into QLever server from {self.dataset.get_ttl_file()}"
         )
@@ -62,23 +65,29 @@ class QleverDBNative(ExecutableDB):
                 [
                     item
                     for item in self.db_dir.iterdir()
-                    if self.id in item.name and item.name.endswith(".json")
+                    if f"{self.id}.metadata.json" in item.name
                 ]
             )
             > 0
         )
         if has_index:
-            logger.warning(
-                f"DB directory {self.db_dir} already exists, removing locks if any"
-            )
+            logger.warning(f"DB directory {self.db_dir} already exists!")
             # (self.db_dir / "tdb.lock").unlink(missing_ok=True)
             # for item in self.db_dir.iterdir():
             #     if item.is_dir():
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
+            index_arg = f"-f {full_ttl.absolute()} -i {self.id}"
+            if self.enable_tensor_index:
+                index_arg += " --vocabulary-type on-disk-compressed-tensor-split"
+            logger.info(
+                "Indexing dataset with QLever indexer, this may take a while; arguments: "
+                + index_arg,
+            )
             self.run_command(
-                f"qlever-index -f {full_ttl.absolute()} -i {self.id}",
+                f"qlever-index {index_arg}",
                 cwd=self.db_dir,
+                log_file_fd=self.server_log_file_fd,
             )
         try:
             self.stop()
@@ -87,6 +96,8 @@ class QleverDBNative(ExecutableDB):
         logger.info(f"Starting QLever server on port {self.port_id}")
         qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0 -m 8G --tensor-search-max-num-threads 4"
         logger.info(f"Running command: {qlever_start_cmd}")
+        if self.server_log_file_fd is not None:
+            self.server_log_file_fd.close()
         self.server_log_file_fd = open(self.server_log_file, "a")
         self.server = subprocess.Popen(
             qlever_start_cmd,

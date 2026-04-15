@@ -29,9 +29,10 @@ class QleverDB(BaseDocker):
         id: str = "default",
         use_encoded_ttl: bool = False,
         name: str = "QLever (Extended)",
+        enable_tensor_index: bool = True,
     ):
         super().__init__(
-            id=id,
+            id=id + ("-with-tidx" if enable_tensor_index else "-no-tidx"),
             port_id=5030,
             dataset=dataset,
             container_name=f"qlever_benchmarks_{id}",
@@ -41,11 +42,13 @@ class QleverDB(BaseDocker):
             docker_image="qlever:tensors",
             use_encoded_ttl=use_encoded_ttl,
         )
+        self.enable_tensor_index = enable_tensor_index
         self.server: subprocess.Popen | None = None
 
     def setup(self):
         # load the dataset into the QLever server
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.container_log_file_fd = open(self.container_log_file, "a")
         logger.info(
             f"Loading dataset into QLever server from {self.dataset.get_ttl_file()}"
         )
@@ -62,25 +65,28 @@ class QleverDB(BaseDocker):
                 [
                     item
                     for item in self.db_dir.iterdir()
-                    if self.id in item.name and item.name.endswith(".json")
+                    if f"{self.id}.metadata.json" in item.name
                 ]
             )
             > 0
         )
         if has_index:
-            logger.warning(
-                f"DB directory {self.db_dir} already exists, removing locks if any"
-            )
+            logger.warning(f"DB directory {self.db_dir} already exists!")
             # (self.db_dir / "tdb.lock").unlink(missing_ok=True)
             # for item in self.db_dir.iterdir():
             #     if item.is_dir():
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
+            index_arg = f"-f /ttl/{full_ttl.name} -i {self.id} -m 8G"
+            if self.enable_tensor_index:
+                index_arg += " --vocabulary-type on-disk-compressed-tensor-split"
             logger.info(
-                f"Running command to create index: qlever-index -f {full_ttl} -i {self.id} -m 8G"
+                "Indexing dataset with QLever indexer, this may take a while; arguments: "
+                + index_arg,
             )
             self.run_command(
-                f"docker run --rm -v {self.db_dir.absolute()}:/data -v {full_ttl.parent.absolute()}:/ttl -e UID={uid} -e GID={gid} -w /data {self.docker_image} 'qlever-index -f /ttl/{full_ttl.name} -i {self.id} -m 8G'",
+                f"docker run --rm -v {self.db_dir.absolute()}:/data -v {full_ttl.parent.absolute()}:/ttl -e UID={uid} -e GID={gid} -w /data {self.docker_image} 'qlever-index {index_arg}'",
+                log_file_fd=self.container_log_file_fd,
             )
         try:
             self.stop()
@@ -91,6 +97,9 @@ class QleverDB(BaseDocker):
         )
         docker_start_cmd = f"docker run --name {self.docker_container_name} -e UID={uid} -e GID={gid} -p {self.port_id}:5030 -v {self.db_dir.absolute()}:/data -w /data  {self.docker_image} 'qlever-server -o -i {self.id} --port 5030 -k 0'"
         logger.info(f"Running command: {docker_start_cmd}")
+
+        if self.container_log_file_fd is not None:
+            self.container_log_file_fd.close()
         self.container_log_file_fd = open(self.container_log_file, "a")
         self.server = subprocess.Popen(
             docker_start_cmd,

@@ -39,11 +39,14 @@ sbatch encode_dbpedia.sh
 
 ### Building the indices
 
-First we have to combine the files into one new normalized triples file:
+First we have to combine the files into one new normalized triples file and can rebuild the index next:
 
 ```sh
 # assuminging you are in dbpedia/
 cat dbpedia_complete.nt encoded_thumbnails/*.nt > dbpedia_complete_encoded.nt
 mkdir -p index-encoded
+cd index-encoded
 qlever-index -i dbpedia-encoded -f ../dbpedia_complete_encoded.nt -m 100G
 tdb2.tdbloader --loc ./fuseki-encoded dbpedia_complete_encoded.nt
+````
+

@@ -85,7 +85,7 @@ def en_data(wit_feature: dict) -> dict:
     return None
 
 
-def urls_in_dbpedia(rows: pd.DataFrame, db: BaseDB) -> dict[int, list[str]]:  #
+def urls_in_dbpedia(rows: pd.DataFrame, db: BaseDB) -> pd.DataFrame:  #
     features = {id: row["en_wit_features"] for id, row in rows.iterrows()}
 
     values = " ".join(
@@ -100,6 +100,9 @@ def urls_in_dbpedia(rows: pd.DataFrame, db: BaseDB) -> dict[int, list[str]]:  #
     }}""")
     # filter out only equal matches
     # subjs = subjs[subjs.apply(lambda row: row["label"] == row["title"], axis=1)]
+    if subjs.empty:
+        print("No matches found in DBpedia for the given URLs.")
+        return pd.DataFrame(columns=["s", "id", "wikipage"])
     subjs["id"] = subjs["id"].astype(int)
     return subjs
 
@@ -112,6 +115,9 @@ def encode_dbpedia_thumbnails(
 ):
     # get all subjects from the dataframe
     df_dbpedia_subjects = urls_in_dbpedia(df, db)
+    if df_dbpedia_subjects.empty:
+        print("No subjects found in DBpedia for the given URLs. Skipping encoding.")
+        return []
     df_batch = df.loc[df_dbpedia_subjects["id"]]
     df_batch["dbpedia_subjects"] = df_batch.apply(
         lambda row: df_dbpedia_subjects[df_dbpedia_subjects["id"] == row.name][
