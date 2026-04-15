@@ -109,6 +109,7 @@ class FusekiDBNative(ExecutableDB):
             stdout=self.server_log_file_fd,
             stderr=self.server_log_file_fd,
         )
+        self.pid = self.server.pid
         self.wait_for_server()
 
     def get_available_query_types(self) -> list[QUERY_TYPE]:

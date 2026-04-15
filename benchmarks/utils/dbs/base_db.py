@@ -14,7 +14,7 @@ from rdflib.plugins.stores.sparqlstore import SPARQLStore
 
 import time
 from .utils import run_with_timeout
-
+from .stats.base import BaseStatRecorder
 from ..datasets.base_dataset import (
     BaseDataset,
     QUERY_TYPE,
@@ -97,6 +97,7 @@ class BaseDB(
             self.g.bind(prefix, uri)
         self.dense_cache: DenseIndexCache = DenseIndexCache()
         self.use_encoded_ttl = use_encoded_ttl
+        self.stat_recorder: BaseStatRecorder | None = None
 
     def run_command(
         self,
@@ -365,3 +366,28 @@ class BaseDB(
                         queries[difficulty] = {}
                     queries[difficulty][query_type] = query
         return queries
+
+    def start_record_stats(self):
+        if self.stat_recorder is not None:
+            self.stat_recorder.clear_stats()
+            self.stat_recorder.start_recording()
+        else:
+            raise NotImplementedError(
+                "Stat recording not implemented for base database"
+            )
+
+    def stop_record_stats(self):
+        if self.stat_recorder is not None:
+            self.stat_recorder.stop_recording()
+        else:
+            raise NotImplementedError(
+                "Stat recording not implemented for base database"
+            )
+
+    def get_stats(self) -> pd.DataFrame:
+        if self.stat_recorder is not None:
+            return self.stat_recorder.get_stats()
+        else:
+            raise NotImplementedError(
+                "Stat recording not implemented for base database"
+            )

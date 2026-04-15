@@ -13,7 +13,7 @@ from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
 from ..datasets.base_dataset import BaseDataset
 from .base_db import BaseDB
-
+from .stats.ps import PSStatRecorder
 import subprocess
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ class ExecutableDB(BaseDB):
         self.server_log_file = self.db_dir / f"{self.id}_run.log"
         self.server_log_file_fd: TextIOWrapper = self.server_log_file.open("a")
         self.server: subprocess.Popen | None = None
+        self.pid: int | None = None
 
     @abstractmethod
     def setup(self):
@@ -64,3 +65,19 @@ class ExecutableDB(BaseDB):
             self.server.kill()
         if self.server_log_file_fd is not None:
             self.server_log_file_fd.close()
+        self.pid = None
+
+    def start_record_stats(self):
+        if self.pid is None:
+            raise RuntimeError(
+                "Cannot start recording stats: server process not running / PID not set"
+            )
+        self.stat_recorder = PSStatRecorder(self.pid)
+        self.stat_recorder.clear_stats()
+        self.stat_recorder.start_recording()
+
+    def stop_record_stats(self):
+        self.stat_recorder.stop_recording()
+
+    def get_stats(self) -> pd.DataFrame:
+        return self.stat_recorder.get_stats()
