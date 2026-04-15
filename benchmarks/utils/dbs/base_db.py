@@ -328,8 +328,9 @@ class BaseDB(
 
     def remove_prefix(self, uri: str) -> str:
         for prefix, namespace in self.prefixes.items() | self.dataset.prefixes.items():
-            if uri.startswith(f"<{namespace}"):
-                return f"{prefix}:{uri[len(str(namespace)) + 1 : -1]}"
+            if uri.startswith(f"<{namespace}") or uri.startswith(f"{namespace}"):
+                offset = 1 if uri.startswith("<") else 0
+                return f"{prefix}:{uri[len(str(namespace)) + offset : -1]}"
         return uri
 
     def remove_ns_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
