@@ -53,6 +53,13 @@ argsc.add_argument(
     default="./scratch/results",
     help="Directory for benchmark results",
 )
+argsc.add_argument(
+    "--id",
+    type=int,
+    default=0,
+    help="ID for the benchmark run",
+)
+
 args = argsc.parse_args()
 
 if __name__ == "__main__":
@@ -74,6 +81,7 @@ if __name__ == "__main__":
         base_dir=base_db_dir,
         dataset=dataset,
         use_encoded_ttl=True,
+        port_offset=args.id,
     )
     match args.db:
         case "fuseki":
@@ -87,6 +95,7 @@ if __name__ == "__main__":
                 use_encoded_ttl=True,
                 enable_tensor_index=True,
                 name="Qlever",
+                port_offset=args.id,
             )
 
         case "qlever":
@@ -97,6 +106,7 @@ if __name__ == "__main__":
                 use_encoded_ttl=True,
                 enable_tensor_index=False,
                 name="Qlever (no Tensor Vocabulary)",
+                port_offset=args.id,
             )
     logger.info(f"Using database: {db.id}")
     logger.info(f"Setting up database {db.id} for dataset {dataset.name}...")

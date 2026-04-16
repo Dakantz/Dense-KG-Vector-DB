@@ -3,6 +3,7 @@ from io import TextIOWrapper
 import logging
 from pathlib import Path
 
+from PIL.XVThumbImagePlugin import r
 import pandas as pd
 import rdflib
 from rdflib import Literal, URIRef
@@ -140,9 +141,15 @@ class BaseDB(
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
-                self.g.query("ASK { ?s ?p ?o }")
+                result = self.g.query("ASK { ?s ?p ?o }")
                 logger.info("Server is up and responding to queries")
-                return True
+                if result and not isinstance(result, tuple):
+                    return True
+                else:
+                    logger.info(
+                        f"Server is not responding to queries yet, got result: {result}"
+                    )
+                    raise ValueError("Server is not responding to queries yet")
             except Exception as e:
                 logger.info(
                     f"Waiting for server to start..., got error: {e} ({self.endpoint})"

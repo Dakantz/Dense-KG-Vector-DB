@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 
 
 class FusekiDBNative(ExecutableDB):
-    port_id: int = 7030
+    port_id: int = 8030
 
     def __init__(
         self,

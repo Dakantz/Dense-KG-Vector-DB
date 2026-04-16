@@ -24,6 +24,6 @@ source ../.venv/bin/activate
 
 echo "Running BSBM benchmark with db $db_type and power $power_id"
 
-python run_bsbm_bench.py --db $db_type --power $power_id
+python run_bsbm_bench.py --db $db_type --power $power_id --id $SLURM_ARRAY_TASK_ID
 
 echo "DONE"
