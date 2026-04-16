@@ -103,6 +103,9 @@ class BaseDB(
         self.use_encoded_ttl = use_encoded_ttl
         self.stat_recorder: BaseStatRecorder | None = None
 
+    def kill_existing_processes(self):
+        pass
+
     def run_command(
         self,
         command: str,

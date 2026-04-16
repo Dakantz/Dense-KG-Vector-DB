@@ -46,6 +46,7 @@ class FusekiDBNative(ExecutableDB):
         # load the dataset into the Fuseki server using the command line tool from the ttls from the dataset
         # by generating tdb2 file and then starting the docker container with the tdb2 file as volume
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.kill_existing_processes()
         logger.info(
             f"Loading dataset into Fuseki server from {self.dataset.get_ttl_file()}"
         )
