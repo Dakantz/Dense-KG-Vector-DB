@@ -146,7 +146,7 @@ class BaseDB(
             try:
                 result = self.g.query("ASK { ?s ?p ?o }")
                 logger.info("Server is up and responding to queries")
-                if result and not isinstance(result, tuple):
+                if not isinstance(result, tuple):
                     return True
                 else:
                     logger.info(

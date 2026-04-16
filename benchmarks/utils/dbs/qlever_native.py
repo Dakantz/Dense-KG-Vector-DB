@@ -22,7 +22,7 @@ logger.setLevel(logging.INFO)
 
 
 class QleverDBNative(ExecutableDB):
-    port_id: int = 8030
+    port_id: int = 12030
 
     def __init__(
         self,

@@ -68,9 +68,13 @@ class ExecutableDB(BaseDB):
     def stop(self):
         logger.info("Stopping server!")
         if self.server is not None:
-            self.server.kill()
+            self.server.terminate()
+            self.server = None
         if self.server_log_file_fd is not None:
             self.server_log_file_fd.close()
+        # find associated port and process and kill it if still running
+        # this is a fallback in case the server process was not properly terminated and is still running
+        self.run_command(f"fuser -k {self.port_id}/tcp")
         self.pid = None
 
     def start_record_stats(self):
