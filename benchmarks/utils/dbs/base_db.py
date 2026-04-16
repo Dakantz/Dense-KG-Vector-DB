@@ -392,3 +392,11 @@ class BaseDB(
             raise NotImplementedError(
                 "Stat recording not implemented for base database"
             )
+
+    def get_triple_count(self) -> int:
+        count_query = "SELECT (COUNT(*) AS ?count) WHERE { ?s ?p ?o }"
+        result = self.query(count_query)
+        if "count" in result.columns:
+            return int(result["count"].iloc[0])
+        else:
+            raise ValueError("Count query did not return a 'count' column")

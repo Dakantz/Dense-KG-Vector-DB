@@ -43,7 +43,5 @@ class PSStatRecorder(BaseStatRecorder):
             self.add_stats(record)
             logger.debug(f"Raw stats output for PID {self.pid}: {record}")
         except Exception as e:
-            logger.error(
-                f"Error recording stats for container {self.container_name}: {e}"
-            )
+            logger.error(f"Error recording stats for container {self.pid}: {e}")
             traceback.print_exc()

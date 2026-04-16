@@ -1,14 +1,11 @@
 from utils.datasets import BerlinSparqlBenchmark
-from utils.dbs import FusekiDB, QleverDB, BaseDB
-from utils.datasets.base_dataset import QUERY_DIFFICULTY, QUERY_TYPE
 from pathlib import Path
 import numpy as np
-from utils.datasets.base_dataset import DataTensor
 from sentence_transformers import SentenceTransformer
 import argparse
 import json
 
-argsc = argparse.ArgumentParser(description="Run BDSDM timings")
+argsc = argparse.ArgumentParser(description="Run BSBM timings")
 argsc.add_argument(
     "--max-power", type=int, default=6, help="Maximum power of 10 for dataset sizes"
 )
@@ -63,7 +60,7 @@ if __name__ == "__main__":
     for power, size in zip(powers, sizes):
         print(f"Encoding dataset of size {size}...")
         dataset = datasets[power]
-        encoded_sizes[power] = dataset.encode_streaming(encoding_model)
+        encoded_sizes[power] = dataset.encode(encoding_model)
         #  dataset.get_triple_count(encoded=True)
     with open(Path(args.base_dir) / "bsbm_encoding_sizes.json", "w") as f:
         json.dump(encoded_sizes, f)

@@ -202,3 +202,6 @@ LIMIT 10
                 ?featureB rdf:comment_embedding ?vectorB .
             }
         """
+
+    def get_estimated_size(self) -> int:
+        return self.n

@@ -176,3 +176,6 @@ class BaseDataset(ABC):
         ttl_file = self.get_encoded_ttl_file() if encoded else self.get_ttl_file()
         with open(ttl_file, "r") as f:
             return sum(1 for _ in f)
+
+    def get_estimated_size(self) -> int:
+        return -1
