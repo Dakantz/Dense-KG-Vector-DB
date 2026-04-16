@@ -7,7 +7,7 @@ This dataset is automatically set up once calling the `.setup()` method on the d
 If there is no docker installed on your system you might need to ressort to manually downloading the BSBM binaries from [here](https://sourceforge.net/projects/bsbmtools/), unzipping them in the `benchmarks/data` directory and running the command:
 ```sh
 # assuming you are in benchmarks/
-python bsbm_timings_setup.py --max-power 7 --bsbm-dir ./data/bsbmtools-0.2 #--use-docker in case you just want to generate the dataset using docker!
+python bsbm_timings_setup.py --max-power 6 --bsbm-dir ./data/bsbmtools-0.2 #--use-docker in case you just want to generate the dataset using docker!
 ```
 You can also increase the power 
 

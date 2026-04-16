@@ -32,3 +32,6 @@ sh ./install_with_uv.sh --cpu
 ### Generating the Benchmark Datasets
 
 Please refer to the specific [instructions](benchmarks/data/README.md).
+
+### Running the benchmarks
+

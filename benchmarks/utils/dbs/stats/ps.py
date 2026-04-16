@@ -37,7 +37,7 @@ class PSStatRecorder(BaseStatRecorder):
                 "cpu_percent": proc.cpu_percent(interval=None),
                 "mem_usage": proc.memory_full_info().rss,
                 "net_io": -1,
-                "block_io": sum(proc.io_counters()),
+                "block_io": -1,  # sum(proc.io_counters()),
                 "pids": len(proc.children(recursive=True)) + 1,
             }
             self.add_stats(record)

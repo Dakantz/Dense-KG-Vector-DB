@@ -110,7 +110,9 @@ class BenchmarkRunner:
                 timings.append(
                     {
                         "size": full_triple_count,
-                        "power": int(np.log10(full_triple_count)),
+                        "power": int(np.log10(full_triple_count))
+                        if full_triple_count > 0
+                        else 0,
                         "estimated_size": estimated_size,
                         "elapsed_time": elapsed_time,
                         "rep": i,
