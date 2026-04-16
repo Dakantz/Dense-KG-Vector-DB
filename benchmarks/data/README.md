@@ -2,13 +2,22 @@
 
 ## BSDBM
 
-This dataset is automatically set up once calling the `.setup()` method on the dataset class and can be encoded using `.encode()` methods.
+This dataset is automatically set up once calling the `.setup()` method on the dataset class and can be encoded using `.encode()` methods -- if you have docker installed.
+
+If there is no docker installed on your system you might need to ressort to manually downloading the BSBM binaries from [here](https://sourceforge.net/projects/bsbmtools/), unzipping them in the `benchmarks/data` directory and running the command:
+```sh
+# assuming you are in benchmarks/
+python bsbm_timings_setup.py --max-power 7 --bsbm-dir ./data/bsbmtools-0.2 #--use-docker in case you just want to generate the dataset using docker!
+```
+You can also increase the power 
 
 ## DBPedia
 
 Reproducing this dataset may take some time - download and build the `.nt.bz2` file using
 
 ```sh
+mkdir -p data
+mkdir -p data
 cd dbpedia
 mkdir -p prepare && cd prepare
 wget https://databus.dbpedia.org/dbpedia/generic/images/2022.12.01/images_lang=en.ttl.bz2
@@ -44,8 +53,13 @@ First we have to combine the files into one new normalized triples file and can 
 ```sh
 # assuminging you are in dbpedia/
 cat dbpedia_complete.nt encoded_thumbnails/*.nt > dbpedia_complete_encoded.nt
+# you can compress it using pigz dbpedia_complete_encoded.nt
+pigz -k dbpedia_complete_encoded.nt
 mkdir -p index-encoded
 cd index-encoded
+qlever-index -i dbpedia-encoded-tidx -f ../dbpedia_complete_encoded.nt -m 100G --vocabulary-type on-disk-compressed-tensor-split
+mkdir -p index-encoded-no-tidx
+cd index-encoded-no-tidx
 qlever-index -i dbpedia-encoded -f ../dbpedia_complete_encoded.nt -m 100G
 tdb2.tdbloader --loc ./fuseki-encoded dbpedia_complete_encoded.nt
 ````

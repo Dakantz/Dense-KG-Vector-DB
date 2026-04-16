@@ -61,14 +61,7 @@ class QleverDBNative(ExecutableDB):
         )
         has_index = (
             self.db_dir.exists()
-            and len(
-                [
-                    item
-                    for item in self.db_dir.iterdir()
-                    if f"{self.id}.metadata.json" in item.name
-                ]
-            )
-            > 0
+            and len([*self.db_dir.rglob(f"**/*{self.id}.meta-data.json")]) > 0
         )
         if has_index:
             logger.warning(f"DB directory {self.db_dir} already exists!")

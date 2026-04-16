@@ -13,7 +13,22 @@ argsc.add_argument(
     "--max-power", type=int, default=6, help="Maximum power of 10 for dataset sizes"
 )
 argsc.add_argument(
-    "--base-dir", type=str, default="./data", help="Base directory for datasets"
+    "--base-dir",
+    type=str,
+    default="./data",
+    help="Base directory for datasets",
+)
+argsc.add_argument(
+    "--bsbm-dir",
+    type=str,
+    default="./data/bsbmtools-0.2",
+    help="Directory containing BSBM tools for dataset generation",
+)
+argsc.add_argument(
+    "--use-docker",
+    action="store_true",
+    help="Whether to use Docker for dataset generation",
+    default=False,
 )
 args = argsc.parse_args()
 
@@ -29,7 +44,10 @@ if __name__ == "__main__":
     for power, size in zip(powers, sizes):
         print(f"Running BDSDM generation for size {size}...")
         dataset = BerlinSparqlBenchmark(
-            base_dir=Path(args.base_dir) / f"bsbm_{power}", n=size
+            base_dir=Path(args.base_dir) / f"bsbm_{power}",
+            n=size,
+            bsbm_directory=Path(args.bsbm_dir),
+            use_docker=args.use_docker,
         )
         dataset.setup()
         datasets[power] = dataset

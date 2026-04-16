@@ -24,20 +24,19 @@ class PSStatRecorder(BaseStatRecorder):
             "block_io": lambda x: self.parse_datasize(x),
             "pids": lambda x: int(x),
         }
-        logger.debug(
-            f"Initialized StatRecorder for PID {self.pid} with stats_map: {self.stats_map} and stats_parsers: {self.stats_parsers}"
-        )
+        logger.debug(f"Initialized StatRecorder for PID {self.pid}")
         self.stats_lock = threading.RLock()
         self.clear_stats()
+        self.proc = ps.Process(self.pid)
 
     def record_stats(self):
         try:
-            proc = ps.Process(self.pid)
+            proc = self.proc
             record = {
                 "timestamp": pd.Timestamp.now(),
                 "cpu_percent": proc.cpu_percent(interval=None),
-                "mem_usage": proc.memory_info().rss,
-                "net_io": sum(proc.net_io_counters()),
+                "mem_usage": proc.memory_full_info().rss,
+                "net_io": -1,
                 "block_io": sum(proc.io_counters()),
                 "pids": len(proc.children(recursive=True)) + 1,
             }

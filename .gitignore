@@ -228,3 +228,4 @@ tdb.lock
 *.tar.gz
 
 hf_cache
+bsbmtools-0.2

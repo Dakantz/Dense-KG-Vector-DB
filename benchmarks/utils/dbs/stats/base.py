@@ -34,7 +34,7 @@ class BaseStatRecorder:
 
         if hasattr(self, "_record_thread") and self._record_thread.is_alive():
             logger.warning(
-                f"Stat recording already running for container {self.container_name}"
+                f"Stat recording already running for container {self.identifier}. Ignoring start_recording call."
             )
             return
         self._stop_event = threading.Event()

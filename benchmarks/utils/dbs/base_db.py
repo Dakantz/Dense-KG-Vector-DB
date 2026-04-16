@@ -195,7 +195,7 @@ class BaseDB(
 
         def query_operation():
             qres = self.g.query(query_types[query_type])
-            return self.__q_to_df_values(qres)
+            return self.q_to_df_values(qres)
 
         return run_with_timeout(query_operation, timeout=self.timeout)
 
@@ -213,7 +213,7 @@ class BaseDB(
                 f"Running SPARQL query: {sparql_query} against endpoint {self.endpoint}"
             )
             qres = self.g.query(sparql_query)
-            return self.__q_to_df_values(qres, remove_ns=remove_ns)
+            return self.q_to_df_values(qres, remove_ns=remove_ns)
 
         return run_with_timeout(query_operation, timeout=self.timeout)
 
@@ -259,7 +259,7 @@ class BaseDB(
             f"Running two-stage SPARQL query: {sparql_query} against endpoint {self.endpoint}"
         )
         qres = self.g.query(sparql_query)
-        qres_df = self.__q_to_df_values(qres)
+        qres_df = self.q_to_df_values(qres)
         if query_difficulty == QUERY_DIFFICULTY.EASY:
             qres_df_filtered = self.query_easy_two_stage(qres_df, embedding=tensor, k=k)
         elif query_difficulty == QUERY_DIFFICULTY.HARD:
@@ -313,7 +313,7 @@ class BaseDB(
         # )
         return pd.DataFrame(results)
 
-    def __q_to_df_values(self, qres: Result, remove_ns: bool = True) -> pd.DataFrame:
+    def q_to_df_values(self, qres: Result, remove_ns: bool = True) -> pd.DataFrame:
         if isinstance(qres, tuple):
             logger.error(f"Query failed: {qres}")
         if not qres.vars:

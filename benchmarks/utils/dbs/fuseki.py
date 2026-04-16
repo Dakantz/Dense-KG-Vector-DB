@@ -56,23 +56,13 @@ class FusekiDB(BaseDocker):
             if self.use_encoded_ttl
             else self.dataset.get_ttl_file()
         )
-        has_db = (
-            self.db_dir.exists()
-            and len(
-                [
-                    item
-                    for item in self.db_dir.iterdir()
-                    if self.id in item.name and item.name.endswith(".dat")
-                ]
-            )
-            > 0
-        )
+        has_db = self.db_dir.exists() and len([*self.db_dir.rglob("*.dat")]) > 0
         if has_db:
             logger.warning(
                 f"DB directory {self.db_dir} already exists, removing locks if any"
             )
             (self.db_dir / "tdb.lock").unlink(missing_ok=True)
-            for item in self.db_dir.iterdir():
+            for item in self.db_dir.rglob("*.lock"):
                 if item.is_dir():
                     (item / "tdb.lock").unlink(missing_ok=True)
         else:

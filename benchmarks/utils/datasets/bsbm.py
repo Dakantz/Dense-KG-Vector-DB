@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import logging
 
@@ -33,6 +34,8 @@ class BerlinSparqlBenchmark(
         base_dir: Path = Path("./bsbm"),
         ttl_file: Path = "dataset.nt",
         n=int(1e9),
+        use_docker: bool = True,
+        bsbm_directory: Path = Path("./data/bsbmtools-0.2"),
     ):
         super().__init__(
             name="bsbm",
@@ -45,6 +48,8 @@ class BerlinSparqlBenchmark(
         self.base_dir = base_dir
         self.full_ttl_file = self.base_dir / ttl_file
         self.n = n
+        self.use_docker = use_docker
+        self.bsbm_directory = Path(bsbm_directory)
 
     def setup(self):
         if self.full_ttl_file.exists():
@@ -56,11 +61,20 @@ class BerlinSparqlBenchmark(
         logger.info(f"Generating BSBM dataset in {self.base_dir}")
         if not self.base_dir.exists():
             self.base_dir.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            f"docker run -v {self.base_dir.absolute()}:/app/data -e 'DATA_DESTINATION=./' vcity/bsbm generate -pc {self.n}",
-            shell=True,
-            check=True,
-        )
+        if self.use_docker:
+            subprocess.run(
+                f"docker run -v {self.base_dir.absolute()}:/app/data -e 'DATA_DESTINATION=./' vcity/bsbm generate -pc {self.n}",
+                shell=True,
+                check=True,
+            )
+        else:
+            subprocess.run(
+                f"./generate -pc {self.n}",
+                shell=True,
+                check=True,
+                cwd=self.bsbm_directory,
+            )
+            os.rename(self.bsbm_directory / "dataset.nt", self.full_ttl_file)
 
     def get_ttl_files(self):
         return [self.full_ttl_file]

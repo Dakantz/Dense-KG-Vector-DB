@@ -27,3 +27,8 @@ source .venv/bin/activate
 cd faiss
 sh ./install_with_uv.sh --cpu
 ```
+
+
+### Generating the Benchmark Datasets
+
+Please refer to the specific [instructions](benchmarks/data/README.md).
