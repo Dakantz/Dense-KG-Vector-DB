@@ -78,7 +78,7 @@ class BenchmarkRunner:
             )
         except Exception as e:
             print(f"Error occurred while querying {db.name}: {e}")
-            raise e
+
         elapsed_time = end_time - start_time if end_time is not None else np.inf
         if elapsed_time > 30:
             print(
@@ -107,6 +107,11 @@ class BenchmarkRunner:
             ):
                 # add a small amount of noise to the test tensor to avoid caching effects
                 elapsed_time, score = self.run_repetition(db, difficulty, query_type)
+                if elapsed_time > 30:
+                    print(
+                        f"Query took {elapsed_time:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
+                    )
+                    break
                 timings.append(
                     {
                         "size": full_triple_count,

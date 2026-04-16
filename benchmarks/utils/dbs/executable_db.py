@@ -78,7 +78,7 @@ class ExecutableDB(BaseDB):
             self.server_log_file_fd.close()
         # find associated port and process and kill it if still running
         # this is a fallback in case the server process was not properly terminated and is still running
-        self.run_command(f"fuser -k {self.port_id}/tcp")
+        self.run_command(f"fuser -k {self.port_id}/tcp", allow_fail=True)
         self.pid = None
 
     def start_record_stats(self):
