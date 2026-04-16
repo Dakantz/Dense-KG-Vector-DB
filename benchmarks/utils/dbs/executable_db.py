@@ -32,6 +32,7 @@ class ExecutableDB(BaseDB):
         base_dir: Path | None = None,
         db_dir: Path | None = None,
         use_encoded_ttl: bool = False,
+        kill_existing: bool = True,
         *args,
         **kwargs,
     ):
@@ -54,6 +55,11 @@ class ExecutableDB(BaseDB):
         self.server_log_file_fd: TextIOWrapper = self.server_log_file.open("a")
         self.server: subprocess.Popen | None = None
         self.pid: int | None = None
+        if kill_existing:
+            logger.warning(
+                f"Killing any existing process using port {self.port_id} before starting the server"
+            )
+            self.run_command(f"fuser -k {self.port_id}/tcp")
 
     @abstractmethod
     def setup(self):

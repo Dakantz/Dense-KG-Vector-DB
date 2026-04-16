@@ -4,6 +4,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import argparse
 import json
+import torch
 
 argsc = argparse.ArgumentParser(description="Run BSBM timings")
 argsc.add_argument(
@@ -26,6 +27,12 @@ argsc.add_argument(
     action="store_true",
     help="Whether to use Docker for dataset generation",
     default=False,
+)
+argsc.add_argument(
+    "--threads",
+    type=int,
+    default=16,
+    help="Number of threads to use for dataset generation",
 )
 args = argsc.parse_args()
 
@@ -52,7 +59,10 @@ if __name__ == "__main__":
 
     # %%
 
-    encoding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    torch.set_num_threads(args.threads)
+    encoding_model = SentenceTransformer("all-MiniLM-L6-v2").to(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    )
 
     # %%
 

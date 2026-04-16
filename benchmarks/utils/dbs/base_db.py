@@ -3,7 +3,6 @@ from io import TextIOWrapper
 import logging
 from pathlib import Path
 
-from PIL.XVThumbImagePlugin import r
 import pandas as pd
 import rdflib
 from rdflib import Literal, URIRef
@@ -59,6 +58,8 @@ for difficulty in QUERY_DIFFICULTY:
     )
     two_stage_mixin[difficulty] = t
 
+PORT_COUNTER = 14012
+
 
 class BaseDB(
     two_stage_mixin[QUERY_DIFFICULTY.EASY], two_stage_mixin[QUERY_DIFFICULTY.HARD], ABC
@@ -77,8 +78,10 @@ class BaseDB(
         *args,
         **kwargs,
     ):
+        global PORT_COUNTER
         logger_dir.mkdir(exist_ok=True)
-        self.port_id = port_id
+        self.port_id = port_id + PORT_COUNTER
+        PORT_COUNTER += 1
         self.endpoint = f"http://localhost:{self.port_id}/{id}/sparql"
         self.id = id
         self.timeout = timeout
