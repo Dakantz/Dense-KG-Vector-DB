@@ -2,7 +2,6 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from typing import TypeVar
 
-
 In = TypeVar("In")
 Out = TypeVar("Out")
 

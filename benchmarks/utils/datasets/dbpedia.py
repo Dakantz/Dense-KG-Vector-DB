@@ -100,37 +100,39 @@ ORDER BY DESC(?dist)
         """
 
     def get_query_hard_embedded(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
+SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     ?s dbo:thumbnail_embedding ?thumb_ship_emb .
-    {
-        SELECT DISTINCT ?s ?r ?thumb_rail_emb  WHERE {
+    {{
+        SELECT DISTINCT ?s ?r ?thumb_rail_emb  WHERE {{
             ?s a dbo:Ship .
             ?r a dbo:RailwayLine .
             ?r dbo:thumbnail_embedding ?thumb_rail_emb .
-        }
-    }
+        }}
+    }}
+
+    VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
     BIND(dtf:dotProduct(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
-} ORDER BY DESC(?dist)"""
+}}ORDER BY DESC(?dist)"""
 
     def get_query_hard_index(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
-SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
-    {
-    SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
+SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
+    {{
+    SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         
         ?r a dbo:RailwayLine .
         ?r dbo:thumbnail_embedding ?thumb_rail_emb .
         ?r dbo:thumbnail_original ?thumb_rail_original .
                                     
-        SERVICE tensorSearch: {
+        SERVICE tensorSearch: {{
         _:config tensorSearch:numNN 1 ;
         tensorSearch:left ?thumb_rail_emb ;
         tensorSearch:bindDistance ?dist ;
@@ -141,16 +143,16 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
         tensorSearch:right ?thumb_ship_emb ;
         tensorSearch:algorithm tensorSearch:faiss ;
         tensorSearch:distance tensorSearch:dot .
-        {
+        {{
             ?s a dbo:Ship ;
             dbo:thumbnail_embedding ?thumb_ship_emb ;
             dbo:thumbnail_original ?thumb_ship .            
-        }
-        }                  
-    }
-    }
-                                  
-}
+        }}
+        }}                  
+    }}
+    }}
+    VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}         
+}}
 ORDER BY DESC(?dist)
 LIMIT 20
         """

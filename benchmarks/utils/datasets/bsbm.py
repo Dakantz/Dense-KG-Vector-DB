@@ -103,7 +103,6 @@ SERVICE tensorSearch: {{
       tensorSearch:bindDistance ?dist ;
       tensorSearch:payload ?product ;
       tensorSearch:searchK 10 ;
-      tensorSearch:nTrees 10 ;
     tensorSearch:experimentalRightCacheName "easy_index_bsbm" ;
       tensorSearch:right ?vector .
        {{
@@ -115,31 +114,31 @@ SERVICE tensorSearch: {{
 """
 
     def get_query_hard_index(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
 PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
 PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
 PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
 SELECT ?productA ?productB ?dist ?vectorA ?vectorB
-WHERE {
+WHERE {{
 ?productA bsbmv:productFeature ?featureA .
 ?featureA rdf:comment_embedding ?vectorA .
-SERVICE tensorSearch: {
+SERVICE tensorSearch: {{
     _:config tensorSearch:numNN 10 ;
     tensorSearch:left ?vectorA ;
     tensorSearch:bindDistance ?dist ;
     tensorSearch:payload ?productB ;
     tensorSearch:experimentalRightCacheName "hard_index_bsbm" ;
-    tensorSearch:searchK 10 ;
-    tensorSearch:nTrees 128 ;
+    tensorSearch:searchK 4 ;
     tensorSearch:right ?vectorB .
-    {
+    {{
                 ?productB bsbmv:productFeature ?featureB .
                 ?featureB rdf:comment_embedding ?vectorB .
-        }
-    }
-} ORDER BY DESC(?dist)
+        }}
+    }}
+    VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+}} ORDER BY DESC(?dist)
 LIMIT 10
 """
 
@@ -162,47 +161,49 @@ LIMIT 10
 """
 
     def get_query_hard_embedded(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
             PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
             PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
             SELECT ?productA ?productB ?dist ?vectorA ?vectorB
-            WHERE {
+            WHERE {{
                 ?productA bsbmv:productFeature ?featureA .
                 ?productB bsbmv:productFeature ?featureB .
                 ?featureA rdf:comment_embedding ?vectorA .
                 ?featureB rdf:comment_embedding ?vectorB .
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
-            } ORDER BY DESC(?dist)
+            }} ORDER BY DESC(?dist)
             LIMIT 10
         """
 
     def get_query_easy_two_stage(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
             PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
             SELECT ?product  ?vector
-            WHERE {
+            WHERE {{
                 ?product rdf:label_embedding ?vector .
-            }
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }}
         """
 
     def get_query_hard_two_stage(self, embedding: DataTensor) -> str:
-        return """
+        return f"""
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
             PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
             PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
             SELECT ?productA ?productB ?vectorA ?vectorB
-            WHERE {
+            WHERE {{
                 ?productA bsbmv:productFeature ?featureA .
                 ?featureA rdf:comment_embedding ?vectorA .
                 ?productB bsbmv:productFeature ?featureB .
                 ?featureB rdf:comment_embedding ?vectorB .
-            }
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }}
         """
 
     def get_estimated_size(self) -> int:

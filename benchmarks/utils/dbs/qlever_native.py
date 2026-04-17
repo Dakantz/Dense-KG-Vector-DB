@@ -73,7 +73,7 @@ class QleverDBNative(ExecutableDB):
             #     if item.is_dir():
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
-            index_arg = f"-f {full_ttl.absolute()} -i {self.id}"
+            index_arg = f"-f {full_ttl.absolute()} -i {self.id} -m {self.max_memory}"
             if self.enable_tensor_index:
                 index_arg += " --vocabulary-type on-disk-compressed-tensor-split"
             logger.info(

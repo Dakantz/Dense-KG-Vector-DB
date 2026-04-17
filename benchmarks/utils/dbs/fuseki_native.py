@@ -29,7 +29,7 @@ class FusekiDBNative(ExecutableDB):
         exec_dir: Path = Path("../jena-datatensor"),
         use_encoded_ttl: bool = False,
         do_image_build: bool = False,
-        name: str = "FusekiDB + RDFTensor",
+        name: str = "Fuseki + RDFTensor",
         port_offset: int = 0,
     ):
         super().__init__(
