@@ -13,8 +13,9 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import argparse
 import logging
+import os
 
-
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 argsc = argparse.ArgumentParser(description="Run BSBM timings")
@@ -53,7 +54,7 @@ args = argsc.parse_args()
 if __name__ == "__main__":
     # %%
     args = argsc.parse_args()
-    powers = np.arange(0, 5)  # extend on a more powerful machine
+    powers = np.arange(0, args.max_power + 1)  # extend on a more powerful machine
     sizes = 10**powers
     datasets: dict[int, BerlinSparqlBenchmark] = {}
 
@@ -68,10 +69,11 @@ if __name__ == "__main__":
     timings_df = pd.DataFrame()
     stats_df = pd.DataFrame()
     offset = 0
+
     for power, size in zip(powers, sizes):
         difficulties = [
-            QUERY_DIFFICULTY.HARD,
             QUERY_DIFFICULTY.EASY,
+            QUERY_DIFFICULTY.HARD,
         ]
         print(f"Running BDSDM timing for size {size}...")
         dataset = datasets[power]
@@ -134,7 +136,7 @@ if __name__ == "__main__":
         result = bench.run_benchmark(repetitions=args.repetitions)
         timings_df = pd.concat([timings_df, result.timings], ignore_index=True)
         stats_df = pd.concat([stats_df, result.stats], ignore_index=True)
-        out_dir = Path(args.out_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        result.timings.to_csv(out_dir / "bsbm_timings_all.csv", index=False)
-        result.stats.to_csv(out_dir / "bsbm_stats_all.csv", index=False)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    timings_df.to_csv(out_dir / "bsbm_timings_all.csv", index=False)
+    stats_df.to_csv(out_dir / "bsbm_stats_all.csv", index=False)

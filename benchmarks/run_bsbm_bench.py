@@ -111,11 +111,9 @@ if __name__ == "__main__":
     logger.info(f"Using database: {db.id}")
     logger.info(f"Setting up database {db.id} for dataset {dataset.name}...")
     difficulties = [
-        # QUERY_DIFFICULTY.HARD,
+        QUERY_DIFFICULTY.HARD,
         QUERY_DIFFICULTY.EASY,
     ]
-    if args.power > 1:
-        difficulties = [QUERY_DIFFICULTY.EASY]
 
     test_label = "house furniture storage container"
     test_tensor = DataTensor.from_numpy(encoding_model.encode(test_label))

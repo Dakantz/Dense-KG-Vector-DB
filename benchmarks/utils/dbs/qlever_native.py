@@ -33,6 +33,7 @@ class QleverDBNative(ExecutableDB):
         name: str = "QLever Native (Extended)",
         port_offset: int = 0,
         enable_tensor_index: bool = True,
+        max_memory: str = "32G",
     ):
         super().__init__(
             id=id + ("-with-tidx" if enable_tensor_index else "-no-tidx"),
@@ -46,6 +47,7 @@ class QleverDBNative(ExecutableDB):
         logger.info(
             f"Initialized QLeverDBNative with id={id}, port_id={self.port_id}, dataset={dataset.name}, name={name}, use_encoded_ttl={use_encoded_ttl}, endpoint={self.endpoint}"
         )
+        self.max_memory = max_memory
 
     def setup(self):
         # load the dataset into the QLever server
@@ -88,7 +90,7 @@ class QleverDBNative(ExecutableDB):
         except subprocess.CalledProcessError:
             pass
         logger.info(f"Starting QLever server on port {self.port_id}")
-        qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0 -m 8G --tensor-search-max-num-threads 4"
+        qlever_start_cmd = f"qlever-server -i {self.id} --port {self.port_id} -k 0 -m {self.max_memory} --tensor-search-max-num-threads 4"
         logger.info(f"Running command: {qlever_start_cmd}")
         if self.server_log_file_fd is not None:
             self.server_log_file_fd.close()

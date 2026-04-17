@@ -77,36 +77,80 @@ PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
 SELECT * WHERE {{
-?s a dbo:Ship .
 SERVICE tensorSearch: {{
     _:config tensorSearch:numNN 10 ;
     tensorSearch:left ?query_vector ;
     tensorSearch:bindDistance ?dist ;
-    tensorSearch:payload ?s ;
-    tensorSearch:searchK 128 ;
+    tensorSearch:payload ?s, ?thumb ;
+    tensorSearch:searchK 64 ;
     tensorSearch:nTrees 128 ;
-    tensorSearch:experimentalRightCacheName "easy_index_dbpedia" ;
-    tensorSearch:right ?thumb_emb .
+    # tensorSearch:experimentalRightCacheName "easy_index_dbpedia" ;
+    tensorSearch:right ?thumb_emb ;
+    tensorSearch:algorithm tensorSearch:faiss ;
+    tensorSearch:distance tensorSearch:dot .
        {{
-            ?s dbo:thumbnail_embedding ?thumb_emb .
+            ?s a dbo:Ship ;
+            dbo:thumbnail_embedding ?thumb_emb ;
+            dbo:thumbnail_original ?thumb .
         }}
     }}
     VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
 }} 
-LIMIT 5
+ORDER BY DESC(?dist)
         """
 
     def get_query_hard_embedded(self, embedding: DataTensor) -> str:
-        return f"""
+        return """
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-SELECT * WHERE {{
-    ?s a dbo:Ship .
-    ?s dbo:thumbnail_embedding ?thumb_emb .
-    ?s dbo:thumbnail_original ?thumb .
-    BIND(dtf:cosineSimilarity(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
-}} 
+SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
+    ?s dbo:thumbnail_embedding ?thumb_ship_emb .
+    {
+        SELECT DISTINCT ?s ?r ?thumb_rail_emb  WHERE {
+            ?s a dbo:Ship .
+            ?r a dbo:RailwayLine .
+            ?r dbo:thumbnail_embedding ?thumb_rail_emb .
+        }
+    }
+    BIND(dtf:dotProduct(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
+} ORDER BY DESC(?dist)"""
+
+    def get_query_hard_index(self, embedding: DataTensor) -> str:
+        return """
+PREFIX dbr: <http://dbpedia.org/resource/>
+PREFIX dbo: <http://dbpedia.org/ontology/>
+PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
+SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
+    {
+    SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {
+        
+        ?r a dbo:RailwayLine .
+        ?r dbo:thumbnail_embedding ?thumb_rail_emb .
+        ?r dbo:thumbnail_original ?thumb_rail_original .
+                                    
+        SERVICE tensorSearch: {
+        _:config tensorSearch:numNN 1 ;
+        tensorSearch:left ?thumb_rail_emb ;
+        tensorSearch:bindDistance ?dist ;
+        tensorSearch:payload ?s, ?thumb_ship ;
+        tensorSearch:searchK 1 ;
+        tensorSearch:nTrees 512 ;
+        tensorSearch:experimentalRightCacheName "hard_index_dbpedia" ;
+        tensorSearch:right ?thumb_ship_emb ;
+        tensorSearch:algorithm tensorSearch:faiss ;
+        tensorSearch:distance tensorSearch:dot .
+        {
+            ?s a dbo:Ship ;
+            dbo:thumbnail_embedding ?thumb_ship_emb ;
+            dbo:thumbnail_original ?thumb_ship .            
+        }
+        }                  
+    }
+    }
+                                  
+}
 ORDER BY DESC(?dist)
-LIMIT 5
+LIMIT 20
         """

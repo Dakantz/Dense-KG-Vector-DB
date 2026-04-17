@@ -131,6 +131,8 @@ SERVICE tensorSearch: {
     tensorSearch:bindDistance ?dist ;
     tensorSearch:payload ?productB ;
     tensorSearch:experimentalRightCacheName "hard_index_bsbm" ;
+    tensorSearch:searchK 10 ;
+    tensorSearch:nTrees 128 ;
     tensorSearch:right ?vectorB .
     {
                 ?productB bsbmv:productFeature ?featureB .

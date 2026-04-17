@@ -72,5 +72,3 @@ if __name__ == "__main__":
         dataset = datasets[power]
         encoded_sizes[power] = dataset.encode(encoding_model)
         #  dataset.get_triple_count(encoded=True)
-    with open(Path(args.base_dir) / "bsbm_encoding_sizes.json", "w") as f:
-        json.dump(encoded_sizes, f)

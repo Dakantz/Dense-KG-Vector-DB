@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import timeit
+import traceback
 from numpy.random import f
 import pandas as pd
 import tqdm
@@ -9,6 +10,7 @@ from sklearn.metrics import ndcg_score
 from utils.datasets.base_dataset import BaseDataset, DataTensor
 import logging
 import numpy as np
+from utils.helpers import score_query
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -29,6 +31,7 @@ class BenchmarkRunner:
         dataset: BaseDataset,
         test_tensor: DataTensor,
         reference_results: dict[QUERY_DIFFICULTY, pd.DataFrame] | None = None,
+        full_triple_count: int | None = None,
     ):
         self.dbs = dbs
         self.difficulties = difficulties
@@ -36,6 +39,7 @@ class BenchmarkRunner:
         self.dataset = dataset
         self.test_tensor = test_tensor
         self.reference_results = reference_results
+        self.full_triple_count = full_triple_count
 
     def run_repetition(
         self,
@@ -64,26 +68,14 @@ class BenchmarkRunner:
                     if difficulty in self.reference_results
                     else pd.DataFrame()
                 )
-                if reference_result.empty:
-                    return end_time - start_time, -1
-                reference_scores = np.ones(len(reference_result))
-                result_scores = np.zeros(len(results_df))
-                # set to one if in the reference results
-                for i, row in results_df.iterrows():
-                    if results_df.iloc[i, 0] in reference_result.iloc[:, 0].values:
-                        result_scores[i] = 1
-                score = ndcg_score([reference_scores], [result_scores])
+                score = score_query(results_df, reference_result, col=0)
             assert results is not None and len(results.bindings) > 0, (
                 "Query returned no results"
             )
         except Exception as e:
             print(f"Error occurred while querying {db.name}: {e}")
-
+            traceback.print_exc()
         elapsed_time = end_time - start_time if end_time is not None else np.inf
-        if elapsed_time > 30:
-            print(
-                f"Warning: Query took {elapsed_time:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Will cancel."
-            )
         return elapsed_time, score
 
     def test_db(
@@ -94,13 +86,18 @@ class BenchmarkRunner:
         repetitions=128,
     ) -> TestResult:
         with db:
-            full_triple_count = db.get_triple_count()
+            full_triple_count = (
+                self.full_triple_count
+                if self.full_triple_count is not None
+                else db.get_triple_count()
+            )
             estimated_size = self.dataset.get_estimated_size()
             timings = []
             if query_type not in db.get_available_query_types():
                 print(f"Query type {query_type} not available for {db.name}, skipping.")
                 return TestResult(timings=pd.DataFrame(), stats=pd.DataFrame())
             db.start_record_stats()
+            allowed_timeouts = 2
             for i in tqdm.tqdm(
                 range(repetitions),
                 desc=f"Timing for size {estimated_size}, difficulty {difficulty.value}, query type {query_type.value}, db {db.name}",
@@ -111,7 +108,12 @@ class BenchmarkRunner:
                     print(
                         f"Query took {elapsed_time:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
                     )
-                    break
+                    allowed_timeouts -= 1
+                    if allowed_timeouts <= 0:
+                        print(
+                            f"Too many timeouts for {db.name} on difficulty {difficulty.value}, query type {query_type.value}. Skipping remaining repetitions."
+                        )
+                        break
                 timings.append(
                     {
                         "size": full_triple_count,

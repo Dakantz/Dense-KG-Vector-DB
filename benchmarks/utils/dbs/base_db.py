@@ -11,7 +11,7 @@ from rdflib.namespace import XSD
 from rdflib.query import Result
 from rdflib.term import Node
 from rdflib.plugins.stores.sparqlstore import SPARQLStore
-
+from urllib import request
 import time
 from .utils import run_with_timeout
 from .stats.base import BaseStatRecorder
@@ -87,6 +87,7 @@ class BaseDB(
         self.timeout = timeout
         self.name = name
 
+        request.urlopen.__defaults__ = (None, timeout)
         self.store = SPARQLStore(
             self.endpoint,
             method="POST",
@@ -343,7 +344,8 @@ class BaseDB(
         for prefix, namespace in self.prefixes.items() | self.dataset.prefixes.items():
             if uri.startswith(f"<{namespace}") or uri.startswith(f"{namespace}"):
                 offset = 1 if uri.startswith("<") else 0
-                return f"{prefix}:{uri[len(str(namespace)) + offset : -1]}"
+                end_offset = -1 if uri.endswith(">") else None
+                return f"{prefix}:{uri[len(str(namespace)) + offset : end_offset]}"
         return uri
 
     def remove_ns_from_df(self, df: pd.DataFrame) -> pd.DataFrame:
