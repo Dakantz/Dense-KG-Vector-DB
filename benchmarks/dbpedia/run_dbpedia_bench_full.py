@@ -146,5 +146,5 @@ if __name__ == "__main__":
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    timings_df.to_csv(out_dir / "bsbm_timings_all.csv", index=False)
-    stats_df.to_csv(out_dir / "bsbm_stats_all.csv", index=False)
+    timings_df.to_csv(out_dir / "dbpedia_timings_all.csv", index=False)
+    stats_df.to_csv(out_dir / "dbpedia_stats_all.csv", index=False)

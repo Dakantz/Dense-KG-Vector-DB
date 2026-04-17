@@ -46,7 +46,7 @@ argsc.add_argument(
 argsc.add_argument(
     "--out-dir",
     type=str,
-    default="./scratch/results",
+    default="./scratch/results/bsbm",
     help="Directory for benchmark results",
 )
 args = argsc.parse_args()

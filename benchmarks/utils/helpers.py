@@ -22,6 +22,15 @@ def score_query(
     return score
 
 
+def to_pow_10(x):
+    base_10 = int(np.log10(x))
+    extra = x / (10**base_10)
+    if extra == 1:
+        return f"$10^{{{base_10}}}$"
+
+    return f"${extra:.1f} \\cdot 10^{{{base_10}}}$"
+
+
 def pretty_print_counts(counts_df: pd.DataFrame, out_path: str) -> pd.DataFrame:
     column_mapping = {
         "power": "Power",
@@ -32,15 +41,6 @@ def pretty_print_counts(counts_df: pd.DataFrame, out_path: str) -> pd.DataFrame:
     selection = list(column_mapping.keys())
     counts_df = counts_df[selection].astype(int)
     with open(out_path, "w") as f:
-
-        def to_pow_10(x):
-            base_10 = int(np.log10(x))
-            extra = x / (10**base_10)
-            if extra == 1:
-                return f"$10^{{{base_10}}}$"
-
-            return f"${extra:.1f} \\cdot 10^{{{base_10}}}$"
-
         counts_df = counts_df.rename(columns=column_mapping)
 
         counts_df.style.format(
