@@ -102,7 +102,7 @@ SERVICE tensorSearch: {{
       tensorSearch:left ?query_vector ;
       tensorSearch:bindDistance ?dist ;
       tensorSearch:payload ?product ;
-      tensorSearch:searchK 10 ;
+      tensorSearch:searchK 2 ;
     tensorSearch:experimentalRightCacheName "easy_index_bsbm" ;
       tensorSearch:right ?vector .
        {{
@@ -130,7 +130,7 @@ SERVICE tensorSearch: {{
     tensorSearch:bindDistance ?dist ;
     tensorSearch:payload ?productB ;
     tensorSearch:experimentalRightCacheName "hard_index_bsbm" ;
-    tensorSearch:searchK 4 ;
+    tensorSearch:searchK 2 ;
     tensorSearch:right ?vectorB .
     {{
                 ?productB bsbmv:productFeature ?featureB .
@@ -174,6 +174,7 @@ LIMIT 10
                 ?featureB rdf:comment_embedding ?vectorB .
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }} ORDER BY DESC(?dist)
             LIMIT 10
         """

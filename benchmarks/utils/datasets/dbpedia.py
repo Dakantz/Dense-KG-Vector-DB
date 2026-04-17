@@ -82,8 +82,8 @@ SERVICE tensorSearch: {{
     tensorSearch:left ?query_vector ;
     tensorSearch:bindDistance ?dist ;
     tensorSearch:payload ?s, ?thumb ;
-    tensorSearch:searchK 64 ;
-    tensorSearch:nTrees 128 ;
+    tensorSearch:searchK 1 ;
+    tensorSearch:nTrees 512 ;
     # tensorSearch:experimentalRightCacheName "easy_index_dbpedia" ;
     tensorSearch:right ?thumb_emb ;
     tensorSearch:algorithm tensorSearch:faiss ;
@@ -114,8 +114,8 @@ SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         }}
     }}
 
-    VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
     BIND(dtf:dotProduct(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
+    VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
 }}ORDER BY DESC(?dist)"""
 
     def get_query_hard_index(self, embedding: DataTensor) -> str:
