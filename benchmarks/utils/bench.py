@@ -53,13 +53,17 @@ class BenchmarkRunner:
         )
         test_queries = db.get_queries(embedding=noised_tensor)
         q = test_queries[difficulty][query_type]
-        start_time = timeit.default_timer()
         end_time = None
         score = -1
+        wall_time_start = db.stat_recorder.get_wall_time() if db.stat_recorder else None
+        start_time = timeit.default_timer()
         try:
             results = db.raw_query(q)
             # score the results if reference results are provided
             end_time = timeit.default_timer()
+            wall_time_end = (
+                db.stat_recorder.get_wall_time() if db.stat_recorder else None
+            )
             results_df = db.q_to_df_values(results)
             if self.reference_results is not None:
                 # compute ndcg
@@ -73,10 +77,15 @@ class BenchmarkRunner:
                 "Query returned no results"
             )
         except Exception as e:
-            print(f"Error occurred while querying {db.name}: {e}")
+            logger.error(f"Error occurred while querying {db.name}: {e}")
             traceback.print_exc()
         elapsed_time = end_time - start_time if end_time is not None else np.inf
-        return elapsed_time, score
+        run_wall_time = (
+            (wall_time_end - wall_time_start)
+            if (wall_time_start is not None and wall_time_end is not None)
+            else None
+        )
+        return elapsed_time, score, run_wall_time
 
     def test_db(
         self,
@@ -103,14 +112,16 @@ class BenchmarkRunner:
                 desc=f"Timing for size {estimated_size}, difficulty {difficulty.value}, query type {query_type.value}, db {db.name}",
             ):
                 # add a small amount of noise to the test tensor to avoid caching effects
-                elapsed_time, score = self.run_repetition(db, difficulty, query_type)
+                elapsed_time, score, run_wall_time = self.run_repetition(
+                    db, difficulty, query_type
+                )
                 if elapsed_time > 30:
-                    print(
+                    logger.info(
                         f"Query took {elapsed_time:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
                     )
                     allowed_timeouts -= 1
                     if allowed_timeouts <= 0:
-                        print(
+                        logger.info(
                             f"Too many timeouts for {db.name} on difficulty {difficulty.value}, query type {query_type.value}. Skipping remaining repetitions."
                         )
                         break
@@ -127,6 +138,7 @@ class BenchmarkRunner:
                         "difficulty": difficulty.value,
                         "query_type": query_type.value,
                         "ndcg_score": score,
+                        "wall_time": run_wall_time,
                     }
                 )
 
@@ -152,7 +164,7 @@ class BenchmarkRunner:
         for db in self.dbs:
             for difficulty in self.difficulties:
                 for query_type in self.query_types:
-                    print(
+                    logger.info(
                         f"Running benchmark for {db.name}, difficulty {difficulty.value}, query type {query_type.value}"
                     )
                     result = self.test_db(
@@ -163,6 +175,11 @@ class BenchmarkRunner:
                     )
                     all_timings.append(result.timings)
                     all_stats.append(result.stats)
+        logger.info(
+            "Benchmark completed got: %d timings and %d stats",
+            len(all_timings),
+            len(all_stats),
+        )
         return TestResult(
             timings=pd.concat(all_timings, ignore_index=True),
             stats=pd.concat(all_stats, ignore_index=True),

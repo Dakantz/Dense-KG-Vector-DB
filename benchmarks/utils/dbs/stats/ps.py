@@ -29,6 +29,14 @@ class PSStatRecorder(BaseStatRecorder):
         self.clear_stats()
         self.proc = ps.Process(self.pid)
 
+    def get_wall_time(self):
+        try:
+            return self.proc.cpu_times().user + self.proc.cpu_times().system
+        except Exception as e:
+            logger.error(f"Error getting wall time for PID {self.pid}: {e}")
+            traceback.print_exc()
+            return None
+
     def record_stats(self):
         try:
             proc = self.proc

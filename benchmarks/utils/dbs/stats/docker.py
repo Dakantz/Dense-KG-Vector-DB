@@ -34,6 +34,9 @@ class DockerStatRecorder(BaseStatRecorder):
             f"Initialized StatRecorder for container {self.container_name} with stats_map: {self.stats_map} and stats_parsers: {self.stats_parsers}"
         )
 
+    def get_wall_time(self):
+        return -1
+
     def parse_datasize(self, size_str: str) -> float:
         # size_str is in the format "123.45MB" or "1.23GB"
 

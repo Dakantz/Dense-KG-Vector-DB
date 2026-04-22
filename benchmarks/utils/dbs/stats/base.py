@@ -27,8 +27,12 @@ class BaseStatRecorder:
             )
 
     @abstractmethod
-    def record_stats(self):
+    def record_stats(self) -> None:
         raise NotImplementedError("record_stats must be implemented by subclasses")
+
+    @abstractmethod
+    def get_wall_time(self) -> float:
+        raise NotImplementedError("get_wall_time must be implemented by subclasses")
 
     def start_recording(self, interval_seconds=0.1):
 
