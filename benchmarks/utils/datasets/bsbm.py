@@ -172,10 +172,14 @@ LIMIT 10
             PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
             SELECT DISTINCT ?productA ?productB ?dist ?vectorA ?vectorB
             WHERE {{
-                ?productA bsbmv:productFeature ?featureA .
-                ?productB bsbmv:productFeature ?featureB .
                 ?featureA rdf:comment_embedding ?vectorA .
-                ?featureB rdf:comment_embedding ?vectorB .
+                ?productA bsbmv:productFeature ?featureA .
+                {{
+                    SELECT DISTINCT ?productB ?featureB ?vectorB WHERE {{
+                         ?productB bsbmv:productFeature ?featureB .
+                         ?featureB rdf:comment_embedding ?vectorB .
+                    }}    
+                }}
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}

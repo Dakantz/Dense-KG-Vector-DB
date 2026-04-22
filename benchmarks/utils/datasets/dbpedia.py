@@ -106,9 +106,9 @@ PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     ?s dbo:thumbnail_embedding ?thumb_ship_emb .
+    ?s a dbo:Ship .
     {{
         SELECT DISTINCT ?s ?r ?thumb_rail_emb  WHERE {{
-            ?s a dbo:Ship .
             ?r a dbo:RailwayLine .
             ?r dbo:thumbnail_embedding ?thumb_rail_emb .
         }}
