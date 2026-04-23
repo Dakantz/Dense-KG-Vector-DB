@@ -6,7 +6,31 @@ from sklearn.metrics import ndcg_score
 import pandas as pd
 
 
-def score_query(
+def recall_at_k(
+    result: pd.DataFrame | None, reference: pd.DataFrame, k: int, col: str | int = 0
+) -> float:
+    if reference.empty:
+        return -1
+    reference_set = set(reference.iloc[:, col].values)
+    result_set = set(result.iloc[:k, col].values) if result is not None else set()
+    intersection_size = len(reference_set.intersection(result_set))
+    recall = intersection_size / len(reference_set)
+    return recall
+
+
+def precision_at_k(
+    result: pd.DataFrame | None, reference: pd.DataFrame, k: int, col: str | int = 0
+) -> float:
+    if reference.empty:
+        return -1
+    reference_set = set(reference.iloc[:, col].values)
+    result_set = set(result.iloc[:k, col].values) if result is not None else set()
+    intersection_size = len(reference_set.intersection(result_set))
+    precision = intersection_size / min(k, len(result_set)) if result_set else 0.0
+    return precision
+
+
+def ndcgscore_query(
     result: pd.DataFrame | None, reference: pd.DataFrame, col: str | int = 0
 ) -> float:
     if reference.empty:

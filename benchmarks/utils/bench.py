@@ -1,16 +1,17 @@
 from dataclasses import dataclass
 import timeit
 import traceback
+from unittest import result
 from numpy.random import f
 import pandas as pd
 import tqdm
 
 from utils.dbs.base_db import QUERY_DIFFICULTY, QUERY_TYPE, BaseDB
-from sklearn.metrics import ndcg_score
+
 from utils.datasets.base_dataset import BaseDataset, DataTensor
 import logging
 import numpy as np
-from utils.helpers import score_query
+from utils.helpers import recall_at_k, precision_at_k, ndcgscore_query
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -55,8 +56,13 @@ class BenchmarkRunner:
         q = test_queries[difficulty][query_type]
         end_time = None
         wall_time_end = None
-        score = -1
         results_df = None
+        result = {
+            "elapsed_time": np.inf,
+            "ndcg_score": -1,
+            "recall_score": -1,
+            "wall_time": None,
+        }
         wall_time_start = db.stat_recorder.get_wall_time() if db.stat_recorder else None
         start_time = timeit.default_timer()
         try:
@@ -81,7 +87,8 @@ class BenchmarkRunner:
                     if difficulty in self.reference_results
                     else pd.DataFrame()
                 )
-                score = score_query(results_df, reference_result, col=0)
+                result["ndcg_score"] = ndcgscore_query(results_df, reference_result)
+                result["recall_score"] = recall_at_k(results_df, reference_result, k=10)
             assert results is not None and len(results.bindings) > 0, (
                 "Query returned no results"
             )
@@ -94,7 +101,9 @@ class BenchmarkRunner:
             if (wall_time_start is not None and wall_time_end is not None)
             else None
         )
-        return elapsed_time, score, run_wall_time
+        result["elapsed_time"] = elapsed_time
+        result["wall_time"] = run_wall_time
+        return result
 
     def test_db(
         self,
@@ -121,12 +130,10 @@ class BenchmarkRunner:
                 desc=f"Timing for size {estimated_size}, difficulty {difficulty.value}, query type {query_type.value}, db {db.name}",
             ):
                 # add a small amount of noise to the test tensor to avoid caching effects
-                elapsed_time, score, run_wall_time = self.run_repetition(
-                    db, difficulty, query_type
-                )
-                if elapsed_time > 30:
+                result = self.run_repetition(db, difficulty, query_type)
+                if result["elapsed_time"] > 30:
                     logger.info(
-                        f"Query took {elapsed_time:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
+                        f"Query took {result['elapsed_time']:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
                     )
                     allowed_timeouts -= 1
                     if allowed_timeouts <= 0:
@@ -141,14 +148,12 @@ class BenchmarkRunner:
                         if full_triple_count > 0
                         else 0,
                         "estimated_size": estimated_size,
-                        "elapsed_time": elapsed_time,
                         "rep": i,
                         "engine": db.name,
                         "difficulty": difficulty.value,
                         "query_type": query_type.value,
-                        "ndcg_score": score,
-                        "wall_time": run_wall_time,
                     }
+                    | result
                 )
 
             db.stop_record_stats()

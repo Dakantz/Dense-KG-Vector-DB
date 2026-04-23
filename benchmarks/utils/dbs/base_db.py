@@ -244,7 +244,7 @@ class BaseDB(
 
     # two-stage query generation and execution
     def query_easy_two_stage(
-        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int
+        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int = 10
     ) -> pd.DataFrame:
         if embedding is None:
             raise ValueError("Embedding must be provided for two-stage query")
@@ -257,7 +257,7 @@ class BaseDB(
         return qres_df_filtered
 
     def query_hard_two_stage(
-        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int
+        self, qres_df: pd.DataFrame, embedding: DataTensor, k: int = 10
     ) -> pd.DataFrame:
         query_key = f"{QUERY_DIFFICULTY.HARD.value}_{QUERY_TYPE.TWO_STAGE.value}"
         qres_df["dist"] = 0.0

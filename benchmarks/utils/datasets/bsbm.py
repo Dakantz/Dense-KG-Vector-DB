@@ -158,7 +158,7 @@ SELECT DISTINCT ?product  ?vector ?dist ?feat
 WHERE {{
 ?product rdf:label_embedding ?vector .
 ?product bsbmv:productFeature ?feat .
-BIND(dtf:cosineSimilarity(?vector, {embedding.to_literal().n3()}) AS ?dist) .
+BIND(dtf:dotProduct(?vector, {embedding.to_literal().n3()}) AS ?dist) .
 }}
 ORDER BY DESC(?dist)
 LIMIT 10
@@ -180,7 +180,7 @@ LIMIT 10
                          ?featureB rdf:comment_embedding ?vectorB .
                     }}    
                 }}
-                BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
+                BIND(dtf:dotProduct(?vectorA, ?vectorB) AS ?dist)
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }} ORDER BY DESC(?dist)
