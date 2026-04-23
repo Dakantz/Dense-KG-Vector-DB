@@ -187,7 +187,7 @@ LIMIT 10
             LIMIT 10
         """
 
-    def get_query_easy_two_stage(self, embedding: DataTensor) -> str:
+    def get_query_easy_two_stage(self, embedding: DataTensor, limit=100000) -> str:
         return f"""
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
@@ -198,9 +198,10 @@ LIMIT 10
                 ?product rdf:label_embedding ?vector .
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }}
+            LIMIT {limit}
         """
 
-    def get_query_hard_two_stage(self, embedding: DataTensor) -> str:
+    def get_query_hard_two_stage(self, embedding: DataTensor, limit=100000) -> str:
         return f"""
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
@@ -214,6 +215,7 @@ LIMIT 10
                 ?featureB rdf:comment_embedding ?vectorB .
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }}
+            LIMIT {limit}
         """
 
     def get_estimated_size(self) -> int:

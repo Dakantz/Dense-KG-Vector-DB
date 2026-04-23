@@ -50,6 +50,9 @@ class PSStatRecorder(BaseStatRecorder):
             }
             self.add_stats(record)
             logger.debug(f"Raw stats output for PID {self.pid}: {record}")
+        except ps.NoSuchProcess:
+            logger.warning(f"Process with PID {self.pid} no longer exists.")
+            self.stop_recording()
         except Exception as e:
             logger.error(f"Error recording stats for container {self.pid}: {e}")
             traceback.print_exc()

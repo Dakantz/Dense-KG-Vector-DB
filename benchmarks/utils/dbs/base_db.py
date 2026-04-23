@@ -165,7 +165,14 @@ class BaseDB(
         raise TimeoutError(f"Server did not start within {timeout} seconds")
 
     def __enter__(self):
-        self.setup()
+        retries = 3
+        for attempt in range(retries):
+            try:
+                self.setup()
+                break
+            except TimeoutError as e:
+                logger.error(f"Attempt {attempt + 1} failed: {e}")
+                self.stop()
         logger.debug("Database setup complete, entering context manager")
         return self
 
@@ -200,16 +207,20 @@ class BaseDB(
             raise ValueError(
                 f"Query type {query_type} not supported by this database. Supported query types: {query_types.keys()}"
             )
+        query_operation = None
         if query_type == QUERY_TYPE.TWO_STAGE:
-            return self.two_stage_query(
-                query_types[query_type],
-                tensor=tensor,
-                query_difficulty=query_difficulty,
-            )
 
-        def query_operation():
-            qres = self.g.query(query_types[query_type])
-            return self.q_to_df_values(qres)
+            def query_operation():
+                return self.two_stage_query(
+                    query_types[query_type],
+                    tensor=tensor,
+                    query_difficulty=query_difficulty,
+                )
+        else:
+
+            def query_operation():
+                qres = self.g.query(query_types[query_type])
+                return self.q_to_df_values(qres)
 
         return run_with_timeout(query_operation, timeout=self.timeout)
 

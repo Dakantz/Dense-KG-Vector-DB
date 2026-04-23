@@ -86,7 +86,7 @@ SERVICE tensorSearch: {{
     tensorSearch:nTrees 512 ;
     # tensorSearch:experimentalRightCacheName "easy_index_dbpedia" ;
     tensorSearch:right ?thumb_emb ;
-    tensorSearch:algorithm tensorSearch:faiss ;
+    tensorSearch:algorithm tensorSearch:ivf ;
     tensorSearch:distance tensorSearch:dot .
        {{
             ?s a dbo:Ship ;
@@ -141,7 +141,7 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         tensorSearch:nTrees 512 ;
         tensorSearch:experimentalRightCacheName "hard_index_dbpedia" ;
         tensorSearch:right ?thumb_ship_emb ;
-        tensorSearch:algorithm tensorSearch:faiss ;
+        tensorSearch:algorithm tensorSearch:ivf ;
         tensorSearch:distance tensorSearch:dot .
         {{
             ?s a dbo:Ship ;

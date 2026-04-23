@@ -54,17 +54,26 @@ class BenchmarkRunner:
         test_queries = db.get_queries(embedding=noised_tensor)
         q = test_queries[difficulty][query_type]
         end_time = None
+        wall_time_end = None
         score = -1
+        results_df = None
         wall_time_start = db.stat_recorder.get_wall_time() if db.stat_recorder else None
         start_time = timeit.default_timer()
         try:
-            results = db.raw_query(q)
+            if query_type != QUERY_TYPE.TWO_STAGE:
+                results = db.raw_query(q)
+            else:
+                results_df = db.query_auto(
+                    noised_tensor, query_difficulty=difficulty, query_type=query_type
+                )
             # score the results if reference results are provided
             end_time = timeit.default_timer()
             wall_time_end = (
                 db.stat_recorder.get_wall_time() if db.stat_recorder else None
             )
-            results_df = db.q_to_df_values(results)
+            results_df = (
+                db.q_to_df_values(results) if results_df is None else results_df
+            )
             if self.reference_results is not None:
                 # compute ndcg
                 reference_result = (

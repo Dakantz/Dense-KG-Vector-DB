@@ -11,13 +11,16 @@ def score_query(
 ) -> float:
     if reference.empty:
         return -1
-    reference_scores = np.ones(len(reference))
-    result_scores = np.zeros(len(result))
+    reference_scores = np.arange(len(reference))
+    result_scores = np.zeros(len(reference))
     # set to one if in the reference results
     for i, row in result.iterrows():
+        if i > reference.shape[0]:
+            break
+        if i > result.shape[0]:
+            break
         if result.iloc[i, col] in reference.iloc[:, col].values:
             result_scores[i] = 1
-    result_scores = result_scores[: len(reference_scores)]
     score = ndcg_score([reference_scores], [result_scores])
     return score
 
