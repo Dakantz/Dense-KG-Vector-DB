@@ -13,9 +13,13 @@ def recall_at_k(
         return -1
     reference_set = set(reference.iloc[:, col].values)
     result_set = set(result.iloc[:k, col].values) if result is not None else set()
-    intersection_size = len(reference_set.intersection(result_set))
-    recall = intersection_size / len(reference_set)
-    return recall
+    tp = len(
+        reference_set.intersection(result_set)
+    )  # docs that are in both -relevant docs
+    fn = len(
+        reference_set.difference(result_set)
+    )  # relevant docs that are not present in doc set - missing docs
+    return tp / (tp + fn) if (tp + fn) > 0 else 0.0
 
 
 def precision_at_k(
@@ -25,13 +29,20 @@ def precision_at_k(
         return -1
     reference_set = set(reference.iloc[:, col].values)
     result_set = set(result.iloc[:k, col].values) if result is not None else set()
-    intersection_size = len(reference_set.intersection(result_set))
-    precision = intersection_size / min(k, len(result_set)) if result_set else 0.0
-    return precision
+    tp = len(
+        reference_set.intersection(result_set)
+    )  # docs that are in both -relevant docs
+    fp = len(
+        result_set.difference(reference_set)
+    )  # docs that are not in relevant set - irrelevant docs (false positiv)
+    return tp / (tp + fp) if (tp + fp) > 0 else 0.0
 
 
 def ndcgscore_query(
-    result: pd.DataFrame | None, reference: pd.DataFrame, col: str | int = 0
+    result: pd.DataFrame | None,
+    reference: pd.DataFrame,
+    col: str | int = 0,
+    k: int = 10,
 ) -> float:
     if reference.empty:
         return -1
@@ -45,6 +56,10 @@ def ndcgscore_query(
             break
         if result.iloc[i, col] in reference.iloc[:, col].values:
             result_scores[i] = 1
+    reference_scores = reference_scores[:k]
+    result_scores = result_scores[:k]
+    if len(result_scores) == 1 or len(reference_scores) == 1:
+        return 0.0
     score = ndcg_score([reference_scores], [result_scores])
     return score
 

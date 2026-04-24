@@ -60,14 +60,13 @@ class DBPedia(
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-SELECT * WHERE {{
-    ?s a dbo:Ship .
-    ?s dbo:thumbnail_embedding ?thumb_emb .
-    ?s dbo:thumbnail_original ?thumb .
-    BIND(dtf:cosineSimilarity(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
+SELECT DISTINCT ?s ?thumb_emb ?dist WHERE {{
+    ?s a dbo:Ship ;
+         dbo:thumbnail_embedding ?thumb_emb .
+    BIND(dtf:dotProduct(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
 }} 
 ORDER BY DESC(?dist)
-LIMIT 5
+LIMIT 10
         """
 
     def get_query_easy_index(self, embedding: DataTensor) -> str:
@@ -75,23 +74,21 @@ LIMIT 5
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
-SELECT * WHERE {{
-SERVICE tensorSearch: {{
-    _:config tensorSearch:numNN 10 ;
-    tensorSearch:left ?query_vector ;
-    tensorSearch:bindDistance ?dist ;
-    tensorSearch:payload ?s, ?thumb ;
-    tensorSearch:searchK 1 ;
-    tensorSearch:nTrees 512 ;
-    # tensorSearch:experimentalRightCacheName "easy_index_dbpedia" ;
-    tensorSearch:right ?thumb_emb ;
-    tensorSearch:algorithm tensorSearch:ivf ;
-    tensorSearch:distance tensorSearch:dot .
+PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
+SELECT DISTINCT ?s ?thumb_emb ?dist WHERE {{
+SERVICE tensorIndex: {{
+    _:config tensorIndex:numNN 10 ;
+    tensorIndex:left ?query_vector ;
+    tensorIndex:bindDistance ?dist ;
+    tensorIndex:payload ?s, ?thumb_emb ;
+    tensorIndex:searchK 1 ;
+    tensorIndex:experimentalRightCacheName "easy_index_dbpedia" ;
+    tensorIndex:right ?thumb_emb ;
+    tensorIndex:algorithm tensorIndex:ivf ;
+    tensorIndex:distance tensorIndex:dot .
        {{
             ?s a dbo:Ship ;
-            dbo:thumbnail_embedding ?thumb_emb ;
-            dbo:thumbnail_original ?thumb .
+            dbo:thumbnail_embedding ?thumb_emb .
         }}
     }}
     VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
@@ -123,7 +120,7 @@ SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
 PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
+PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
 SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     {{
     SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
@@ -132,21 +129,20 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         ?r dbo:thumbnail_embedding ?thumb_rail_emb .
         ?r dbo:thumbnail_original ?thumb_rail_original .
                                     
-        SERVICE tensorSearch: {{
-        _:config tensorSearch:numNN 1 ;
-        tensorSearch:left ?thumb_rail_emb ;
-        tensorSearch:bindDistance ?dist ;
-        tensorSearch:payload ?s, ?thumb_ship ;
-        tensorSearch:searchK 1 ;
-        tensorSearch:nTrees 512 ;
-        tensorSearch:experimentalRightCacheName "hard_index_dbpedia" ;
-        tensorSearch:right ?thumb_ship_emb ;
-        tensorSearch:algorithm tensorSearch:ivf ;
-        tensorSearch:distance tensorSearch:dot .
+        SERVICE tensorIndex: {{
+        _:config tensorIndex:numNN 1 ;
+        tensorIndex:left ?thumb_rail_emb ;
+        tensorIndex:bindDistance ?dist ;
+        tensorIndex:payload ?s, ?thumb_ship_emb ;
+        tensorIndex:searchK 1 ;
+        tensorIndex:kIVF 512 ;
+        tensorIndex:experimentalRightCacheName "hard_index_dbpedia" ;
+        tensorIndex:right ?thumb_ship_emb ;
+        tensorIndex:algorithm tensorIndex:ivf ;
+        tensorIndex:distance tensorIndex:dot .
         {{
             ?s a dbo:Ship ;
-            dbo:thumbnail_embedding ?thumb_ship_emb ;
-            dbo:thumbnail_original ?thumb_ship .            
+            dbo:thumbnail_embedding ?thumb_ship_emb .    
         }}
         }}                  
     }}
@@ -154,5 +150,5 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}         
 }}
 ORDER BY DESC(?dist)
-LIMIT 20
+LIMIT 10
         """
