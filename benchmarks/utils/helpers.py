@@ -75,17 +75,31 @@ def pretty_print_counts(
             "full_size": "$n$",
             "full_number_of_tensors": "$n_{tensors}$",
         }
+
+    def filter_cols(cols: list[str], df: pd.DataFrame):
+        return [c for c in cols if c in df.columns]
+
     if format_cols is None:
         format_cols = list(column_mapping.keys())
         to_int_cols = format_cols
-    non_format_cols = [col for col in column_mapping.keys() if col not in format_cols]
+
+    format_cols = filter_cols(format_cols, counts_df)
+    to_int_cols = filter_cols(to_int_cols, counts_df)
+    non_format_cols = filter_cols(
+        [col for col in column_mapping.keys() if col not in format_cols], counts_df
+    )
     print(format_cols, non_format_cols)
     selection = list(column_mapping.keys())
     counts_df[to_int_cols] = counts_df[to_int_cols].astype(int)
-
     counts_df = counts_df[non_format_cols + format_cols].rename(columns=column_mapping)
     if index_cols is not None:
-        counts_df.set_index([column_mapping[col] for col in index_cols], inplace=True)
+        idx_cols = [column_mapping[col] for col in index_cols]
+        idx_cols = filter_cols(idx_cols, counts_df)
+        print(f"Indexing by {idx_cols}")
+        counts_df.set_index(
+            idx_cols,
+            inplace=True,
+        )
 
     with open(out_path, "w") as f:
         counts_df.style.format(
