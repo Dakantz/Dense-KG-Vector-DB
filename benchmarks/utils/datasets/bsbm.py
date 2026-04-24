@@ -95,24 +95,30 @@ PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
 PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
-SELECT DISTINCT ?product  ?vector ?dist ?feat
+PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
+SELECT DISTINCT ?product  ?vector ?dist
 WHERE {{
-SERVICE tensorSearch: {{
-       _:config tensorSearch:numNN 10 ;
-      tensorSearch:left ?query_vector ;
-      tensorSearch:bindDistance ?dist ;
-      tensorSearch:payload ?product, ?feat ;
-      tensorSearch:searchK 1 ;
-    tensorSearch:experimentalRightCacheName "easy_index_bsbm" ;
-      tensorSearch:right ?vector .
+SERVICE tensorIndex: {{
+       _:config tensorIndex:numNN 10 ;
+      tensorIndex:left ?query_vector ;
+      tensorIndex:bindDistance ?dist ;
+      tensorIndex:payload ?product ;
+      tensorIndex:searchK 1;
+      tensorIndex:algorithm tensorIndex:ivf;
+    # tensorIndex:experimentalRightCacheName "easy_index_bsbm" ;
+      tensorIndex:right ?vector .
        {{
-        ?product rdf:label_embedding ?vector .
-        ?product bsbmv:productFeature ?feat .
+            {{
+                SELECT DISTINCT ?product ?vector WHERE {{
+                    ?product rdf:label_embedding ?vector .
+                    ?product bsbmv:productFeature ?feat .
+                }} GROUP BY ?product ?vector
+            }}
         }}
     }}
     VALUES (?query_vector) {{ ({embedding.to_literal().n3()}) }}
-}}
+}} ORDER BY DESC(?dist)
+LIMIT 10
 """
 
     def get_query_hard_index(self, embedding: DataTensor) -> str:
@@ -121,19 +127,19 @@ PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
 PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-PREFIX tensorSearch: <https://qlever.cs.uni-freiburg.de/tensorSearch/>
+PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
 SELECT DISTINCT ?productA ?productB ?dist ?vectorA ?vectorB
 WHERE {{
 ?productA bsbmv:productFeature ?featureA .
 ?featureA rdf:comment_embedding ?vectorA .
-SERVICE tensorSearch: {{
-    _:config tensorSearch:numNN 1 ;
-    tensorSearch:left ?vectorA ;
-    tensorSearch:bindDistance ?dist ;
-    tensorSearch:payload ?productB, ?featureB ;
-    tensorSearch:experimentalRightCacheName "hard_index_bsbm" ;
-    tensorSearch:searchK 1 ;
-    tensorSearch:right ?vectorB .
+SERVICE tensorIndex: {{
+    _:config tensorIndex:numNN 1 ;
+    tensorIndex:left ?vectorA ;
+    tensorIndex:bindDistance ?dist ;
+    tensorIndex:payload ?productB, ?featureB ;
+    tensorIndex:experimentalRightCacheName "hard_index_bsbm" ;
+    tensorIndex:searchK 1 ;
+    tensorIndex:right ?vectorB .
     {{
                 ?productB bsbmv:productFeature ?featureB .
                 ?featureB rdf:comment_embedding ?vectorB .
@@ -154,12 +160,12 @@ PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
 PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-SELECT DISTINCT ?product  ?vector ?dist ?feat 
+SELECT DISTINCT ?product  ?vector ?dist 
 WHERE {{
 ?product rdf:label_embedding ?vector .
 ?product bsbmv:productFeature ?feat .
 BIND(dtf:dotProduct(?vector, {embedding.to_literal().n3()}) AS ?dist) .
-}}
+}} GROUP BY ?product ?vector ?dist
 ORDER BY DESC(?dist)
 LIMIT 10
 """

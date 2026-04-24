@@ -74,7 +74,7 @@ if __name__ == "__main__":
     dbs: list[BaseDocker] = [
         QleverDBNative(
             id="timing-qlever",
-            base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
+            base_dir=Path(f"./scratch/{dataset.base_dir.name}"),
             dataset=dataset,
             use_encoded_ttl=True,
             enable_tensor_index=True,
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         ),
         QleverDBNative(
             id="timing-qlever",
-            base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
+            base_dir=Path(f"./scratch/{dataset.base_dir.name}"),
             dataset=dataset,
             use_encoded_ttl=True,
             enable_tensor_index=False,
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         ),
         FusekiDBNative(
             id="timing-fuseki",
-            base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
+            base_dir=Path(f"./scratch/{dataset.base_dir.name}"),
             dataset=dataset,
             use_encoded_ttl=True,
             name="Fuseki",

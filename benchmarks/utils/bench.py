@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 import timeit
 import traceback
-from unittest import result
-from numpy.random import f
 import pandas as pd
 import tqdm
 
@@ -89,7 +87,7 @@ class BenchmarkRunner:
                 )
                 result["ndcg_score"] = ndcgscore_query(results_df, reference_result)
                 result["recall_score"] = recall_at_k(results_df, reference_result, k=10)
-            assert results is not None and len(results.bindings) > 0, (
+            assert results_df is not None and len(results_df) > 0, (
                 "Query returned no results"
             )
         except Exception as e:
