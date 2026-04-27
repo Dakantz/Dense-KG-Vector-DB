@@ -159,6 +159,7 @@ def encode_dbpedia_thumbnails(
 def prepare_df(df: pd.DataFrame):
     df = df[df["wit_features"].apply(is_en)]
     df["en_wit_features"] = df["wit_features"].apply(en_data)
+    df = df[df["en_wit_features"].map(lambda x: x["is_main_image"]) == True]
     return df
 
 
@@ -210,6 +211,7 @@ if __name__ == "__main__":
         args.model, device="cuda" if torch.cuda.is_available() else "cpu"
     )
     dataset = DBPedia(base_dir=Path(args.dbpedia_dir))
+    index = "index"
     db = QleverDBNative(
         dataset=dataset,
         id="dbpedia",
@@ -219,6 +221,7 @@ if __name__ == "__main__":
         port_offset=args.datafile,
     )
     db.db_dir = Path(args.dbpedia_dir)
+    db.id = "dbpedia"
 
     # %%
     db.setup()

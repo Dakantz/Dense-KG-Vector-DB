@@ -2,12 +2,12 @@
 #SBATCH --job-name=run_bsbm_bench
 #SBATCH --array=0-14%4
 #SBATCH -c 4
-#SBATCH --mem 4G
+#SBATCH --mem 16G
 
 #SBATCH -p allgroups
 #SBATCH --output=logs/run_bsbm_bench_%A_%a.out
 #SBATCH --error=logs/run_bsbm_bench_%A_%a.err
-#SBATCH --time=0:20:00
+#SBATCH --time=1:00:00
 
 # Array size is 5x3=15 
 # -- 5 powers

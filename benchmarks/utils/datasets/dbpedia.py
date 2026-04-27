@@ -20,7 +20,7 @@ class DBPedia(
     # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
     BaseDataset,
 ):
-    def __init__(self, base_dir: Path):
+    def __init__(self, base_dir: Path, left="Ship", right="RailwayLine"):
         super().__init__(
             data_dir=base_dir,
             name="DBPedia",
@@ -31,6 +31,8 @@ class DBPedia(
         )
         self.base_dir = base_dir
         self.full_ttl_file = self.base_dir / "dbpedia_complete.nt.gz"
+        self.left = left
+        self.right = right
 
     def setup(self):
         pass
@@ -61,7 +63,7 @@ PREFIX dbr: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 SELECT DISTINCT ?s ?thumb_emb ?dist WHERE {{
-    ?s a dbo:Ship ;
+    ?s a dbo:{self.left} ;
          dbo:thumbnail_embedding ?thumb_emb .
     BIND(dtf:dotProduct(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
 }} 
@@ -87,7 +89,7 @@ SERVICE tensorIndex: {{
     tensorIndex:algorithm tensorIndex:ivf ;
     tensorIndex:distance tensorIndex:dot .
        {{
-            ?s a dbo:Ship ;
+            ?s a dbo:{self.left} ;
             dbo:thumbnail_embedding ?thumb_emb .
         }}
     }}
@@ -103,17 +105,19 @@ PREFIX dbo: <http://dbpedia.org/ontology/>
 PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     ?s dbo:thumbnail_embedding ?thumb_ship_emb .
-    ?s a dbo:Ship .
+    ?s a dbo:{self.right} .
     {{
         SELECT DISTINCT ?s ?r ?thumb_rail_emb  WHERE {{
-            ?r a dbo:RailwayLine .
+            ?r a dbo:{self.left} .
             ?r dbo:thumbnail_embedding ?thumb_rail_emb .
         }}
     }}
 
     BIND(dtf:dotProduct(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
     VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-}}ORDER BY DESC(?dist)"""
+}}
+ORDER BY DESC(?dist) 
+LIMIT 10"""
 
     def get_query_hard_index(self, embedding: DataTensor) -> str:
         return f"""
@@ -125,7 +129,7 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
     {{
     SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         
-        ?r a dbo:RailwayLine .
+        ?r a dbo:{self.right} .
         ?r dbo:thumbnail_embedding ?thumb_rail_emb .
         ?r dbo:thumbnail_original ?thumb_rail_original .
                                     
@@ -141,7 +145,7 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         tensorIndex:algorithm tensorIndex:ivf ;
         tensorIndex:distance tensorIndex:dot .
         {{
-            ?s a dbo:Ship ;
+            ?s a dbo:{self.left} ;
             dbo:thumbnail_embedding ?thumb_ship_emb .    
         }}
         }}                  

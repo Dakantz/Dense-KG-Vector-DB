@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 dataset=dataset,
                 use_encoded_ttl=True,
                 enable_tensor_index=True,
-                name="Qlever",
+                name="QdLever",
                 port_offset=offset + 1,
             ),
             QleverDBNative(
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 dataset=dataset,
                 use_encoded_ttl=True,
                 enable_tensor_index=False,
-                name="Qlever (no Tensor Vocabulary)",
+                name="QLever (no Tensor Vocabulary)",
                 port_offset=offset + 2,
             ),
         ]

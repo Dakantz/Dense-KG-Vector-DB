@@ -1,6 +1,6 @@
 #!/home/kantz/bin/zsh
 #SBATCH --job-name=encode_dbpedia_images
-#SBATCH --array=50-330%10
+#SBATCH --array=0-330%10
 #SBATCH -c 2
 #SBATCH --mem 6G
 #SBATCH --gres=gpu:rtx 

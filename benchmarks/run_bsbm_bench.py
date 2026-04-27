@@ -94,7 +94,7 @@ if __name__ == "__main__":
                 dataset=dataset,
                 use_encoded_ttl=True,
                 enable_tensor_index=True,
-                name="Qlever",
+                name="QLever",
                 port_offset=args.id,
             )
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                 dataset=dataset,
                 use_encoded_ttl=True,
                 enable_tensor_index=False,
-                name="Qlever (no Tensor Vocabulary)",
+                name="QLever (no Tensor Vocabulary)",
                 port_offset=args.id,
             )
     logger.info(f"Using database: {db.id}")
@@ -120,25 +120,30 @@ if __name__ == "__main__":
 
     reference_results: dict[QUERY_DIFFICULTY, pd.DataFrame] = {}
     for difficulty in difficulties:
-        with reference_db:
-            reference_result = reference_db.query_auto(
-                test_tensor,
-                query_difficulty=difficulty,
-                query_type=QUERY_TYPE.EMBEDDED,
+        try:
+            with reference_db:
+                reference_result = reference_db.query_auto(
+                    test_tensor,
+                    query_difficulty=difficulty,
+                    query_type=QUERY_TYPE.EMBEDDED,
+                )
+                reference_results[difficulty] = reference_result
+        except Exception as e:
+            print(
+                f"Error occurred while querying reference DB for difficulty {difficulty}: {e}"
             )
-            reference_results[difficulty] = reference_result
-    with db:
-        bench = BenchmarkRunner(
-            dbs=[db],
-            test_tensor=test_tensor,
-            difficulties=difficulties,
-            types=[
-                QUERY_TYPE.EMBEDDED,
-                QUERY_TYPE.INDEX,
-            ],
-            dataset=dataset,
-            reference_results=reference_results,
-        )
+    bench = BenchmarkRunner(
+        dbs=[db],
+        test_tensor=test_tensor,
+        difficulties=difficulties,
+        types=[
+            QUERY_TYPE.EMBEDDED,
+            QUERY_TYPE.INDEX,
+            QUERY_TYPE.TWO_STAGE,
+        ],
+        dataset=dataset,
+        reference_results=reference_results,
+    )
     result = bench.run_benchmark(repetitions=16)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
