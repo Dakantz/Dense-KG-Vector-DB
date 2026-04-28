@@ -19,7 +19,7 @@ def recall_at_k(
     fn = len(
         reference_set.difference(result_set)
     )  # relevant docs that are not present in doc set - missing docs
-    return tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    return tp / len(reference_set) if (tp + fn) > 0 else 0.0
 
 
 def precision_at_k(

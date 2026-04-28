@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 dataset=dataset,
                 use_encoded_ttl=True,
                 enable_tensor_index=True,
-                name="QdLever",
+                name="QLever",
                 port_offset=offset + 1,
             ),
             QleverDBNative(
@@ -129,7 +129,7 @@ if __name__ == "__main__":
             types=[
                 QUERY_TYPE.EMBEDDED,
                 QUERY_TYPE.INDEX,
-                QUERY_TYPE.TWO_STAGE,
+                # QUERY_TYPE.TWO_STAGE,
             ],
             dataset=dataset,
             reference_results=reference_results,
