@@ -65,7 +65,7 @@ PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
 SELECT DISTINCT ?s ?thumb_emb ?dist WHERE {{
     ?s a dbo:{self.left} ;
          dbo:thumbnail_embedding ?thumb_emb .
-    BIND(dtf:dotProduct(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
+    BIND(dtf:cosineSimilarity(?thumb_emb, {embedding.to_literal().n3()}) AS ?dist)
 }} 
 ORDER BY DESC(?dist)
 LIMIT 10
@@ -113,7 +113,7 @@ SELECT DISTINCT ?r ?s ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
         }}
     }}
 
-    BIND(dtf:dotProduct(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
+    BIND(dtf:cosineSimilarity(?thumb_ship_emb, ?thumb_rail_emb) AS ?dist) .
     VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
 }}
 ORDER BY DESC(?dist) 

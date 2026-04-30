@@ -104,8 +104,8 @@ SERVICE tensorIndex: {{
       tensorIndex:bindDistance ?dist ;
       tensorIndex:payload ?product ;
       tensorIndex:searchK 1;
-      tensorIndex:algorithm tensorIndex:ivf;
-    # tensorIndex:experimentalRightCacheName "easy_index_bsbm" ;
+      tensorIndex:algorithm tensorIndex:hnsw ;
+      tensorIndex:experimentalRightCacheName "easy_index_bsbm" ;
       tensorIndex:right ?vector .
        {{
             {{
@@ -137,8 +137,9 @@ SERVICE tensorIndex: {{
     tensorIndex:left ?vectorA ;
     tensorIndex:bindDistance ?dist ;
     tensorIndex:payload ?productB, ?featureB ;
-    tensorIndex:experimentalRightCacheName "hard_index_bsbm" ;
     tensorIndex:searchK 1 ;
+    tensorIndex:experimentalRightCacheName "hard_index_bsbm" ;
+    tensorIndex:algorithm tensorIndex:hnsw ;
     tensorIndex:right ?vectorB .
     {{
                 ?productB bsbmv:productFeature ?featureB .
@@ -164,7 +165,7 @@ SELECT DISTINCT ?product  ?vector ?dist
 WHERE {{
 ?product rdf:label_embedding ?vector .
 ?product bsbmv:productFeature ?feat .
-BIND(dtf:dotProduct(?vector, {embedding.to_literal().n3()}) AS ?dist) .
+BIND(dtf:cosineSimilarity(?vector, {embedding.to_literal().n3()}) AS ?dist) .
 }} GROUP BY ?product ?vector ?dist
 ORDER BY DESC(?dist)
 LIMIT 10
@@ -186,7 +187,7 @@ LIMIT 10
                          ?featureB rdf:comment_embedding ?vectorB .
                     }}    
                 }}
-                BIND(dtf:dotProduct(?vectorA, ?vectorB) AS ?dist)
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorB) AS ?dist)
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }} ORDER BY DESC(?dist)
@@ -198,7 +199,7 @@ LIMIT 10
             PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
             PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
             PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
-            SELECT DISTINCT ?product  ?vector ?feat ?dist
+            SELECT DISTINCT ?product  ?vector ?dist
             WHERE {{
                 ?productA bsbmv:productFeature ?feat .
                 ?product rdf:label_embedding ?vector .
