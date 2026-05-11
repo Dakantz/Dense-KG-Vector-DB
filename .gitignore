@@ -230,3 +230,5 @@ tdb.lock
 hf_cache
 bsbmtools-0.2
 apicache
+neo4j*
+tigergraph*

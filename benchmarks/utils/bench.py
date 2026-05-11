@@ -51,7 +51,10 @@ class BenchmarkRunner:
             + np.random.normal(scale=0.001, size=self.test_tensor.shape)
         )
         test_queries = db.get_queries(embedding=noised_tensor)
-        q = test_queries[difficulty][query_type]
+        queries_for_difficulty = test_queries.get(difficulty, {})
+        q = queries_for_difficulty.get(query_type, None)
+        if not q:
+            return None
         end_time = None
         wall_time_end = None
         results_df = None
@@ -110,6 +113,13 @@ class BenchmarkRunner:
         query_type=QUERY_TYPE.EMBEDDED,
         repetitions=128,
     ) -> TestResult:
+
+        test_queries = db.get_queries(embedding=self.test_tensor)
+        if difficulty not in test_queries or query_type not in test_queries[difficulty]:
+            logger.warning(
+                f"No query available for difficulty {difficulty.value} and query type {query_type.value} on {db.name}, skipping."
+            )
+            return None
         with db:
             full_triple_count = (
                 self.full_triple_count
@@ -120,7 +130,7 @@ class BenchmarkRunner:
             timings = []
             if query_type not in db.get_available_query_types():
                 print(f"Query type {query_type} not available for {db.name}, skipping.")
-                return TestResult(timings=pd.DataFrame(), stats=pd.DataFrame())
+                return None
             db.start_record_stats()
             allowed_timeouts = 2
             for i in tqdm.tqdm(
@@ -129,6 +139,11 @@ class BenchmarkRunner:
             ):
                 # add a small amount of noise to the test tensor to avoid caching effects
                 result = self.run_repetition(db, difficulty, query_type)
+                if result is None:
+                    logger.warning(
+                        f"No query available for difficulty {difficulty.value} and query type {query_type.value} on {db.name}, skipping."
+                    )
+                    break
                 if result["elapsed_time"] > 30:
                     logger.info(
                         f"Query took {result['elapsed_time']:.2f} seconds on {db.name} for difficulty {difficulty.value}, query type {query_type.value}. Stopping benchmark for this configuration."
@@ -185,8 +200,9 @@ class BenchmarkRunner:
                         query_type=query_type,
                         repetitions=repetitions,
                     )
-                    all_timings.append(result.timings)
-                    all_stats.append(result.stats)
+                    if result is not None:
+                        all_timings.append(result.timings)
+                        all_stats.append(result.stats)
         logger.info(
             "Benchmark completed got: %d timings and %d stats",
             len(all_timings),

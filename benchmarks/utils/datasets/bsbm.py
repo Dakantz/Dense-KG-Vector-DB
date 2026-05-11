@@ -27,6 +27,10 @@ class BerlinSparqlBenchmark(
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_INDEX],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_INDEX],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
+    # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_EMBEDDED],
     BaseDataset,
 ):
     def __init__(
@@ -88,6 +92,9 @@ class BerlinSparqlBenchmark(
     def get_encoded_ttl_file(self):
         return self.base_dir / f"{self.full_ttl_file.stem}_encoded.nt"
 
+    def get_estimated_size(self) -> int:
+        return self.n
+
     def get_query_easy_index(self, embedding: DataTensor) -> str:
         return f"""
 PREFIX dt: <https://w3id.org/rdf-tensor/datatypes#>
@@ -104,7 +111,7 @@ SERVICE tensorIndex: {{
       tensorIndex:bindDistance ?dist ;
       tensorIndex:payload ?product ;
       tensorIndex:searchK 1;
-      tensorIndex:algorithm tensorIndex:hnsw ;
+      tensorIndex:algorithm tensorIndex:ivf ;
       tensorIndex:experimentalRightCacheName "easy_index_bsbm" ;
       tensorIndex:right ?vector .
        {{
@@ -139,7 +146,7 @@ SERVICE tensorIndex: {{
     tensorIndex:payload ?productB, ?featureB ;
     tensorIndex:searchK 1 ;
     tensorIndex:experimentalRightCacheName "hard_index_bsbm" ;
-    tensorIndex:algorithm tensorIndex:hnsw ;
+    tensorIndex:algorithm tensorIndex:ivf ;
     tensorIndex:right ?vectorB .
     {{
                 ?productB bsbmv:productFeature ?featureB .
@@ -225,5 +232,34 @@ LIMIT 10
             LIMIT {limit}
         """
 
-    def get_estimated_size(self) -> int:
-        return self.n
+    def get_query_easy_cypher_embedded(self, embedding: DataTensor) -> str:
+        return f"""
+MATCH (n)-[r:bsbmv__productFeature]->()
+WHERE n.rdfs__label_embedding_vector IS NOT NULL
+WITH n, vector.similarity.euclidean({embedding.data}, n.rdfs__label_embedding_vector) AS score
+RETURN DISTINCT elementId(n) AS product_id, score
+ORDER BY score DESCENDING
+LIMIT 10
+
+"""
+
+    def get_query_easy_cypher_index(self, embedding: DataTensor) -> str:
+        return f"""MATCH (n:Resource)
+    SEARCH n IN (
+    VECTOR INDEX rdfs__label_embedding_vector_index
+    FOR {embedding.data}
+    LIMIT 10
+    ) SCORE AS score
+    RETURN DISTINCT elementId(n) AS product_id, score"""
+
+    def get_query_hard_cypher_embedded(self, embedding: DataTensor) -> str:
+        return f"""
+MATCH (n1)-[r:bsbmv__productFeature]->()
+WHERE n1.rdfs__comment_embedding_vector IS NOT NULL
+MATCH (n2)-[r2:bsbmv__productFeature]->()
+WHERE n2.rdfs__comment_embedding_vector IS NOT NULL
+WITH n1, n2, vector.similarity.euclidean(n2.rdfs__comment_embedding_vector, n1.rdfs__comment_embedding_vector) AS score
+RETURN DISTINCT elementId(n1) AS product_id_1, elementId(n2) AS product_id_2, score, {embedding.data} AS query_vector
+ORDER BY score DESCENDING
+LIMIT 10
+"""

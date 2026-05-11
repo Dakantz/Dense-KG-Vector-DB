@@ -29,6 +29,8 @@ class QUERY_TYPE(Enum):
     EMBEDDED = "embedded"
     INDEX = "index"
     TWO_STAGE = "two_stage"
+    CYPHER_EMBEDDED = "cypher_embedded"
+    CYPHER_INDEX = "cypher_index"
 
 
 # generate all combinations of query difficulty and query type for the dataset, and implement a method to get the query for a given combination
@@ -39,7 +41,13 @@ for difficulty in [
     QUERY_DIFFICULTY.HARD,
 ]:
     mixin_queries[difficulty] = {}
-    for query_type in [QUERY_TYPE.EMBEDDED, QUERY_TYPE.INDEX, QUERY_TYPE.TWO_STAGE]:
+    for query_type in [
+        QUERY_TYPE.EMBEDDED,
+        QUERY_TYPE.INDEX,
+        QUERY_TYPE.TWO_STAGE,
+        QUERY_TYPE.CYPHER_EMBEDDED,
+        QUERY_TYPE.CYPHER_INDEX,
+    ]:
         class_name = (
             f"{difficulty.value.capitalize()}{query_type.value.capitalize()}QueryMixin"
         )

@@ -1,3 +1,4 @@
+from utils.dbs.neo4j import Neo4JDB
 from utils.datasets import BerlinSparqlBenchmark
 from utils.datasets.data_tensor import DataTensor
 from utils.dbs.fuseki_native import FusekiDBNative
@@ -78,12 +79,12 @@ if __name__ == "__main__":
         print(f"Running BDSDM timing for size {size}...")
         dataset = datasets[power]
         dbs: list[BaseDocker] = [
-            FusekiDBNative(
-                id="timing-fuseki",
+            Neo4JDB(
+                id="timing-neo4j",
                 base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
                 dataset=dataset,
                 use_encoded_ttl=True,
-                port_offset=offset,
+                name="Neo4j",
             ),
             QleverDBNative(
                 id="timing-qlever",
@@ -103,30 +104,39 @@ if __name__ == "__main__":
                 name="QLever (no Tensor Vocabulary)",
                 port_offset=offset + 2,
             ),
+            FusekiDBNative(
+                id="timing-fuseki",
+                base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
+                dataset=dataset,
+                use_encoded_ttl=True,
+                port_offset=offset,
+            ),
         ]
         reference_db = dbs[0]
         reference_results: dict[QUERY_DIFFICULTY, pd.DataFrame] = {}
 
         test_label = "house furniture storage container"
         test_tensor = DataTensor.from_numpy(encoding_model.encode(test_label))
-        for difficulty in difficulties:
-            try:
-                with reference_db:
-                    reference_result = reference_db.query_auto(
-                        test_tensor,
-                        query_difficulty=difficulty,
-                        query_type=QUERY_TYPE.EMBEDDED,
-                    )
-                    reference_results[difficulty] = reference_result
-            except Exception as e:
-                print(
-                    f"Error occurred while querying reference DB for difficulty {difficulty}: {e}"
-                )
+        # for difficulty in difficulties:
+        # try:
+        #     with reference_db:
+        #         reference_result = reference_db.query_auto(
+        #             test_tensor,
+        #             query_difficulty=difficulty,
+        #             query_type=QUERY_TYPE.EMBEDDED,
+        #         )
+        #         reference_results[difficulty] = reference_result
+        # except Exception as e:
+        #     print(
+        #         f"Error occurred while querying reference DB for difficulty {difficulty}: {e}"
+        #     )
         bench = BenchmarkRunner(
             dbs=dbs,
             test_tensor=test_tensor,
             difficulties=difficulties,
             types=[
+                QUERY_TYPE.CYPHER_EMBEDDED,
+                QUERY_TYPE.CYPHER_INDEX,
                 QUERY_TYPE.EMBEDDED,
                 QUERY_TYPE.INDEX,
                 QUERY_TYPE.TWO_STAGE,

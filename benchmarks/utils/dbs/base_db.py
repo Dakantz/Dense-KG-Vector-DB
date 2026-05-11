@@ -75,12 +75,13 @@ class BaseDB(
         name: str = __name__,
         use_encoded_ttl: bool = False,
         timeout: int = 30,
+        port: int | None = None,
         *args,
         **kwargs,
     ):
         global PORT_COUNTER
         logger_dir.mkdir(exist_ok=True)
-        self.port_id = port_id + PORT_COUNTER
+        self.port_id = port_id + PORT_COUNTER if port is None else port
         PORT_COUNTER += 1
         self.endpoint = f"http://localhost:{self.port_id}/{id}/sparql"
         self.id = id
@@ -144,11 +145,15 @@ class BaseDB(
     def stop(self):
         pass
 
+    def get_any_result(self):
+        result = self.g.query("ASK { ?s ?p ?o }")
+        return result
+
     def wait_for_server(self, timeout=30):
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:
-                result = self.g.query("ASK { ?s ?p ?o }")
+                result = self.get_any_result()
                 logger.info("Server is up and responding to queries")
                 if not isinstance(result, tuple):
                     return True
