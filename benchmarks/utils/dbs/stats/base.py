@@ -48,6 +48,7 @@ class BaseStatRecorder:
                 self.record_stats()
                 self._stop_event.wait(interval_seconds)
 
+        self.record_stats()  # Record initial stats immediately
         self._record_thread = threading.Thread(target=record_loop)
         self._record_thread.start()
 
