@@ -72,6 +72,8 @@ def to_pow_10(x, bold=False):
     base_10 = int(np.log10(x))
     extra = x / (10**base_10)
     repr = f"{extra:.2f} \\cdot 10^{{{base_10}}}"
+    if base_10 == 0:
+        repr = f"{extra:.2f}"
     if extra == 1:
         repr = f"10^{{{base_10}}}"
     if np.allclose(x, 1.0):
@@ -92,6 +94,7 @@ def pretty_print_counts(
     caption: str = "",
     significant_cols: list[str] = [],
     significant_affected_cols: list[str] | None = None,
+    twocol: bool = False,
 ) -> pd.DataFrame:
     if column_mapping is None:
         column_mapping = {
@@ -170,4 +173,13 @@ def pretty_print_counts(
             clines="all;data",
             hrules=True,
         )
+    latex_str = ""
+    with open(out_path, "r") as in_f:
+        latex_str = in_f.read()
+        if twocol:
+            latex_str = latex_str.replace("\\begin{table}", "\\begin{table*}").replace(
+                "\\end{table}", "\\end{table*}"
+            )
+    with open(out_path, "w") as out_f:
+        out_f.write(latex_str)
     return counts_df
