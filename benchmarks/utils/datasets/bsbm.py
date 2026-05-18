@@ -27,10 +27,10 @@ class BerlinSparqlBenchmark(
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
-    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_INDEX],
-    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
-    # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_EMBEDDED],
+    # mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_INDEX],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_EMBEDDED],
+    # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.CYPHER_INDEX],
     BaseDataset,
 ):
     def __init__(
@@ -240,17 +240,16 @@ WITH n, vector.similarity.euclidean({embedding.data}, n.rdfs__label_embedding_ve
 RETURN DISTINCT elementId(n) AS product_id, score
 ORDER BY score DESCENDING
 LIMIT 10
-
 """
 
     def get_query_easy_cypher_index(self, embedding: DataTensor) -> str:
-        return f"""MATCH (n:Resource)
-    SEARCH n IN (
+        return f"""MATCH (n)-[:bsbmv__productFeature]->()
+SEARCH n IN (
     VECTOR INDEX rdfs__label_embedding_vector_index
     FOR {embedding.data}
     LIMIT 10
-    ) SCORE AS score
-    RETURN DISTINCT elementId(n) AS product_id, score"""
+) SCORE AS score
+RETURN elementId(n), score"""
 
     def get_query_hard_cypher_embedded(self, embedding: DataTensor) -> str:
         return f"""

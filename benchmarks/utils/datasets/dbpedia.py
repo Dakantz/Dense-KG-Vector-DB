@@ -13,6 +13,7 @@ from .base_dataset import (
 
 class DBPedia(
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
@@ -20,7 +21,7 @@ class DBPedia(
     # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
     BaseDataset,
 ):
-    def __init__(self, base_dir: Path, left="Ship", right="RailwayLine"):
+    def __init__(self, base_dir: Path, left="NaturalPlace", right="Village"):
         super().__init__(
             data_dir=base_dir,
             name="DBPedia",
@@ -30,7 +31,7 @@ class DBPedia(
             },
         )
         self.base_dir = base_dir
-        self.full_ttl_file = self.base_dir / "dbpedia_complete.nt.gz"
+        self.full_ttl_file = self.base_dir / "dbpedia_complete.nt"
         self.left = left
         self.right = right
 
@@ -38,10 +39,16 @@ class DBPedia(
         pass
 
     def get_ttl_files(self):
-        return list(self.base_dir.rglob("*.nt.gz"))
+        return list(self.base_dir.rglob("*.nt"))
 
     def get_ttl_file(self):
         return self.full_ttl_file
+
+    def get_encoded_ttl_file(self):
+        return (
+            self.full_ttl_file.parent
+            / f"{self.full_ttl_file.stem}_encoded{self.full_ttl_file.suffix}"
+        )
 
     def encode(self, model: SentenceTransformer, batch_size=32, force_reencode=False):
         # load triples from ttl file, encode the #label using the provided model, and save the embeddings to a new .ttl file with the same structure but with an additional triple for the embedding
@@ -156,3 +163,13 @@ SELECT DISTINCT ?r ?s  ?dist ?thumb_rail_emb ?thumb_ship_emb WHERE {{
 ORDER BY DESC(?dist)
 LIMIT 10
         """
+
+    def get_query_easy_cypher_embedded(self, embedding: DataTensor) -> str:
+        return f"""
+MATCH (n)-[r]->(s:dbo__{self.left})
+WHERE n.dbo__thumbnail_embedding_vector IS NOT NULL
+WITH n, vector.similarity.euclidean({embedding.data}, n.dbo__thumbnail_embedding_vector) AS score
+RETURN DISTINCT elementId(n) AS product_id, score
+ORDER BY score DESCENDING
+LIMIT 10
+"""

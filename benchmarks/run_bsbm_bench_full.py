@@ -79,13 +79,6 @@ if __name__ == "__main__":
         print(f"Running BDSDM timing for size {size}...")
         dataset = datasets[power]
         dbs: list[BaseDocker] = [
-            Neo4JDB(
-                id="timing-neo4j",
-                base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
-                dataset=dataset,
-                use_encoded_ttl=True,
-                name="Neo4j",
-            ),
             QleverDBNative(
                 id="timing-qlever",
                 base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
@@ -104,6 +97,13 @@ if __name__ == "__main__":
                 name="QLever (no Tensor Vocabulary)",
                 port_offset=offset + 2,
             ),
+            Neo4JDB(
+                id="timing-neo4j",
+                base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
+                dataset=dataset,
+                use_encoded_ttl=True,
+                name="Neo4j",
+            ),
             FusekiDBNative(
                 id="timing-fuseki",
                 base_dir=Path(f"./scratch/bsbm/{dataset.base_dir.name}"),
@@ -117,19 +117,21 @@ if __name__ == "__main__":
 
         test_label = "house furniture storage container"
         test_tensor = DataTensor.from_numpy(encoding_model.encode(test_label))
-        # for difficulty in difficulties:
-        # try:
-        #     with reference_db:
-        #         reference_result = reference_db.query_auto(
-        #             test_tensor,
-        #             query_difficulty=difficulty,
-        #             query_type=QUERY_TYPE.EMBEDDED,
-        #         )
-        #         reference_results[difficulty] = reference_result
-        # except Exception as e:
-        #     print(
-        #         f"Error occurred while querying reference DB for difficulty {difficulty}: {e}"
-        #     )
+        full_triple_count = -1
+        for difficulty in difficulties:
+            try:
+                with reference_db:
+                    reference_result = reference_db.query_auto(
+                        test_tensor,
+                        query_difficulty=difficulty,
+                        query_type=QUERY_TYPE.EMBEDDED,
+                    )
+                    reference_results[difficulty] = reference_result
+                    full_triple_count = reference_db.get_triple_count()
+            except Exception as e:
+                print(
+                    f"Error occurred while querying reference DB for difficulty {difficulty}: {e}"
+                )
         bench = BenchmarkRunner(
             dbs=dbs,
             test_tensor=test_tensor,
@@ -143,6 +145,7 @@ if __name__ == "__main__":
             ],
             dataset=dataset,
             reference_results=reference_results,
+            full_triple_count=full_triple_count,
         )
         result = bench.run_benchmark(repetitions=args.repetitions)
         timings_df = pd.concat([timings_df, result.timings], ignore_index=True)

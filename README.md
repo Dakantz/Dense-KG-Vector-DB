@@ -51,6 +51,11 @@ echo "\nexport PATH = \"$PWD:\$PATH\"" >> ~/.zshrc
 Please refer to the specific [instructions](benchmarks/data/README.md).
 
 
+### Getting Neo4j
+
+We also benchmark against Neo4j by converting the graph to a 
+
+
 ### Running the benchmarks
 
 Now that everything is (hopefully) set up, we can run the benchmarks:
