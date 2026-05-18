@@ -1,5 +1,7 @@
+from numpy.random import f
 import pandas as pd
 import numpy as np
+from pandas import isna
 from sklearn.metrics import ndcg_score
 
 
@@ -64,17 +66,25 @@ def ndcgscore_query(
     return score
 
 
-def to_pow_10(x):
+def to_pow_10(x, bold=False):
+    if pd.isna(x) or x <= 0:
+        return "-"
     base_10 = int(np.log10(x))
     extra = x / (10**base_10)
+    repr = f"{extra:.2f} \\cdot 10^{{{base_10}}}"
+    if base_10 == 0:
+        repr = f"{extra:.2f}"
     if extra == 1:
-        return f"$10^{{{base_10}}}$"
-
-    return f"${extra:.2f} \\cdot 10^{{{base_10}}}$"
+        repr = f"10^{{{base_10}}}"
+    if np.allclose(x, 1.0):
+        repr = "1"
+    if bold:
+        return f"$\\bm{{{repr}}}$"
+    return f"${repr}$"
 
 
 def pretty_print_counts(
-    counts_df: pd.DataFrame,
+    counts_df_: pd.DataFrame,
     out_path: str,
     column_mapping: dict = None,
     format_cols: list[str] = None,
@@ -82,6 +92,9 @@ def pretty_print_counts(
     index_cols: list[str] = None,
     label_xtra: str = "",
     caption: str = "",
+    significant_cols: list[str] = [],
+    significant_affected_cols: list[str] | None = None,
+    twocol: bool = False,
 ) -> pd.DataFrame:
     if column_mapping is None:
         column_mapping = {
@@ -90,10 +103,16 @@ def pretty_print_counts(
             "full_size": "$n$",
             "full_number_of_tensors": "$n_{tensors}$",
         }
+    counts_df = counts_df_.copy()
+    significant_col_vals = [counts_df[col].to_list() for col in significant_cols]
 
     def filter_cols(cols: list[str], df: pd.DataFrame):
         return [c for c in cols if c in df.columns]
 
+    if significant_affected_cols is None:
+        significant_affected_cols = []
+    if significant_cols is not None and significant_affected_cols is not None:
+        significant_affected_cols = filter_cols(significant_affected_cols, counts_df)
     if format_cols is None:
         format_cols = list(column_mapping.keys())
         to_int_cols = format_cols
@@ -115,16 +134,52 @@ def pretty_print_counts(
             idx_cols,
             inplace=True,
         )
+    with open(out_path, "w") as out_f:
+        stylers_significant = []
+        for idx, col in enumerate(significant_affected_cols):
+            assert idx < len(significant_col_vals), (
+                f"Not enough significant columns provided for the affected column {col}"
+            )
+            assert len(significant_col_vals[idx]) == counts_df.shape[0], (
+                f"Significant column {significant_cols[idx]} has different number of values than the DataFrame rows for the affected column {col}"
+            )
 
-    with open(out_path, "w") as f:
-        counts_df.style.format(
+            def styler_significant(x: float, idx_local=idx):
+                print(
+                    f"Col: {col=}, Idx: {idx_local=} {significant_col_vals[idx_local]=}"
+                )
+                is_significant = (
+                    significant_col_vals[idx_local].pop(0)
+                    if significant_col_vals is not None
+                    else False
+                )
+                print(f"Value: {x}, Significant: {is_significant}")
+                return to_pow_10(x, bold=is_significant)
+
+            stylers_significant.append(styler_significant)
+        formatters = (
             {column_mapping[col]: lambda x: x for col in non_format_cols}
             | {column_mapping[col]: to_pow_10 for col in format_cols}
-        ).to_latex(
-            buf=f,
+            | {
+                column_mapping[col]: stylers_significant[i]
+                for i, col in enumerate(significant_affected_cols)
+            }
+        )
+
+        counts_df.style.format(formatter=formatters).to_latex(
+            buf=out_f,
             caption=caption,
             label=f"tab:{label_xtra}",
             clines="all;data",
             hrules=True,
         )
+    latex_str = ""
+    with open(out_path, "r") as in_f:
+        latex_str = in_f.read()
+        if twocol:
+            latex_str = latex_str.replace("\\begin{table}", "\\begin{table*}").replace(
+                "\\end{table}", "\\end{table*}"
+            )
+    with open(out_path, "w") as out_f:
+        out_f.write(latex_str)
     return counts_df
