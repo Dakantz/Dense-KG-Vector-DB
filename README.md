@@ -29,7 +29,7 @@ cd faiss
 sh ./install_with_uv.sh --cpu
 ```
 
-### Compiling qlever
+### Compiling `qlever`
 
 Ensure that you have a recent version of `gcc`+ `cmake`installed!
 
@@ -53,7 +53,7 @@ Please refer to the specific [instructions](benchmarks/data/README.md).
 
 ### Getting Neo4j
 
-We also benchmark against Neo4j by converting the graph to a 
+We also benchmark against Neo4j by converting the graph to a property graph using the `neosemantics` [library](https://neo4j.com/labs/neosemantics/5.14/introduction/). To set it up, download Neo4j, and install it in a subfolder. The database hook might need updating to the correct path in the [class](benchmarks/utils/dbs/neo4j.py).
 
 
 ### Running the benchmarks
