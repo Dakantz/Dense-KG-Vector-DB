@@ -42,6 +42,9 @@ class FusekiDBNative(ExecutableDB):
         )
         self.exec_dir = exec_dir
 
+    def start_request(self):
+        return "Query ="
+
     def setup(self):
         # load the dataset into the Fuseki server using the command line tool from the ttls from the dataset
         # by generating tdb2 file and then starting the docker container with the tdb2 file as volume

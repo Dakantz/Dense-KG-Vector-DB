@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from io import TextIOWrapper
 import logging
 from pathlib import Path
+import re
 
 import pandas as pd
 import rdflib
@@ -53,10 +54,15 @@ class ExecutableDB(BaseDB):
             self.db_dir.mkdir(parents=True, exist_ok=True)
         self.server_log_file = self.db_dir / f"{self.id}_run.log"
         self.server_log_file_fd: TextIOWrapper = self.server_log_file.open("a")
+        self.clear_log()
         self.server: subprocess.Popen | None = None
         self.pid: int | None = None
         self.enable_kill_existing = kill_existing
         self.kill_existing_processes()
+
+    @abstractmethod
+    def start_request(self):
+        pass
 
     def kill_existing_processes(self):
         if self.enable_kill_existing:
@@ -64,6 +70,68 @@ class ExecutableDB(BaseDB):
                 f"Killing any existing process using port {self.port_id} before starting the server"
             )
             self.run_command(f"fuser -k {self.port_id}/tcp", allow_fail=True)
+
+    def read_log(self) -> str:
+        if self.server_log_file.exists():
+            with open(self.server_log_file, "r") as f:
+                return f.read()
+        else:
+            return ""
+
+    def clear_log(self):
+        if self.server_log_file_fd is not None and not self.server_log_file_fd.closed:
+            self.server_log_file_fd.close()
+        if self.server_log_file.exists():
+            self.server_log_file.unlink()
+        self.server_log_file_fd = open(self.server_log_file, "a")
+
+    def get_timings(self, key: str):
+        log = self.read_log()
+        timings = []
+        matches = re.finditer(rf"--TIMING \({key}\) END: ([0-9,]+) ns--", log)
+        for match in matches:
+            timings.append(int(match.group(1)))
+        return timings
+
+    def get_timings_per_query_key(self, key: str):
+        log = self.read_log()
+        per_query_timings = []
+        current_query_timings = None
+        lines = log.splitlines()
+        for line in lines:
+            if self.start_request() in line:
+                if current_query_timings is not None:
+                    per_query_timings.append(current_query_timings)
+                current_query_timings = []
+            elif f"--TIMING ({key}) END:" in line:
+                match = re.search(r"--TIMING \({key}\) END: ([0-9,]+) ns--", line)
+                if match:
+                    current_query_timings.append(int(re.sub(r",", "", match.group(1))))
+        if current_query_timings is not None:
+            per_query_timings.append(current_query_timings)
+        return per_query_timings
+
+    def get_timings_per_query(self):
+        log = self.read_log()
+        per_query_timings: list[dict[str, list[int]]] = []
+        current_query_timings: dict[str, list[int]] = None
+        lines = log.splitlines()
+        for line in lines:
+            if self.start_request() in line:
+                if current_query_timings is not None:
+                    per_query_timings.append(current_query_timings)
+                current_query_timings = {}
+            match = re.search(r"--TIMING \((.+)\) END: ([0-9,]+) +ns--", line)
+            if match:
+                key = match.group(1)
+                timing = int(re.sub(r",", "", match.group(2)))
+                if current_query_timings is not None:
+                    if key not in current_query_timings:
+                        current_query_timings[key] = []
+                    current_query_timings[key].append(timing)
+        if current_query_timings is not None:
+            per_query_timings.append(current_query_timings)
+        return per_query_timings
 
     @abstractmethod
     def setup(self):

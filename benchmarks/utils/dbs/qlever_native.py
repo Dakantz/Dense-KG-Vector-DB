@@ -49,6 +49,9 @@ class QleverDBNative(ExecutableDB):
         )
         self.max_memory = max_memory
 
+    def start_request(self):
+        return "Request received via"
+
     def setup(self):
         # load the dataset into the QLever server
         self.base_dir.mkdir(parents=True, exist_ok=True)
