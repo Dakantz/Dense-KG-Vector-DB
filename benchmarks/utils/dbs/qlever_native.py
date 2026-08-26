@@ -33,7 +33,7 @@ class QleverDBNative(ExecutableDB):
         name: str = "QLever Native (Extended)",
         port_offset: int = 0,
         enable_tensor_index: bool = True,
-        max_memory: str = "32G",
+        max_memory: str = "16G",
     ):
         super().__init__(
             id=id + ("-with-tidx" if enable_tensor_index else "-no-tidx"),
@@ -76,13 +76,16 @@ class QleverDBNative(ExecutableDB):
             #     if item.is_dir():
             #         (item / "tdb.lock").unlink(missing_ok=True)
         else:
-            index_arg = f"-f {full_ttl.absolute()} -i {self.id} -m {self.max_memory}"
+            index_arg = (
+                f"-f {full_ttl.absolute()} -i {self.id} -m {self.max_memory} -p 1"
+            )
             if self.enable_tensor_index:
                 index_arg += " --vocabulary-type on-disk-compressed-tensor-split"
             logger.info(
                 "Indexing dataset with QLever indexer, this may take a while; arguments: "
                 + index_arg,
             )
+            self.db_dir.mkdir(parents=True, exist_ok=True)
             self.run_command(
                 f"qlever-index {index_arg}",
                 cwd=self.db_dir,
