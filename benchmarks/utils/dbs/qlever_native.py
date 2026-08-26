@@ -56,6 +56,9 @@ class QleverDBNative(ExecutableDB):
         # load the dataset into the QLever server
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.server_log_file_fd = open(self.server_log_file, "a")
+        logger.info(
+            f"Setting up QLeverDBNative db_dir={self.db_dir}, base_dir={self.base_dir}"
+        )
         logger.info(f"Logging QLever setup to {self.server_log_file}")
         logger.info(
             f"Loading dataset into QLever server from {self.dataset.get_ttl_file()}"
