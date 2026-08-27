@@ -233,3 +233,4 @@ apicache
 neo4j-*
 tigergraph*
 *.csv
+benchmarks/data/dbpedia/dbpedia

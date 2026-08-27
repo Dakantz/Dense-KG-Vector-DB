@@ -33,7 +33,7 @@ argsc.add_argument(
 argsc.add_argument(
     "--base-dir",
     type=str,
-    default="./data/dbpedia",
+    default="./data/dbpedia/dbpedia",
     help="Base directory for DBPedia datasets",
 )
 argsc.add_argument(
@@ -99,6 +99,7 @@ if __name__ == "__main__":
             port_offset=-300,
         ),
     ]
+
     reference_db = dbs[0]
     test_label = "horse on a bow"
     test_tensor = DataTensor.from_numpy(encoding_model.encode(test_label))
@@ -111,7 +112,9 @@ if __name__ == "__main__":
         db.db_dir = Path(args.base_dir) / index
         db.id = id if id is not None else db.id
     reference_results: dict[QUERY_DIFFICULTY, pd.DataFrame] = {}
-
+    for db in dbs:
+        print(f"Setting up DB: {db.name} with ID: {db.id}")
+        db.setup()
     full_triple_count = -1
     with reference_db:
         full_triple_count = reference_db.get_triple_count()

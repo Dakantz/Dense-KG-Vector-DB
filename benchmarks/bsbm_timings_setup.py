@@ -8,7 +8,7 @@ import torch
 
 argsc = argparse.ArgumentParser(description="Run BSBM timings setup")
 argsc.add_argument(
-    "--max-power", type=int, default=6, help="Maximum power of 10 for dataset sizes"
+    "--max-power", type=int, default=5, help="Maximum power of 10 for dataset sizes"
 )
 argsc.add_argument(
     "--base-dir",

@@ -6,6 +6,7 @@ from sklearn.metrics import ndcg_score
 
 
 import pandas as pd
+from pathlib import Path
 
 
 def recall_at_k(
@@ -122,7 +123,7 @@ def pretty_print_counts(
     non_format_cols = filter_cols(
         [col for col in column_mapping.keys() if col not in format_cols], counts_df
     )
-    print(format_cols, non_format_cols)
+    print("Format cols:", format_cols, "Non-format cols:", non_format_cols)
     selection = list(column_mapping.keys())
     counts_df[to_int_cols] = counts_df[to_int_cols].astype(int)
     counts_df = counts_df[non_format_cols + format_cols].rename(columns=column_mapping)
@@ -173,13 +174,54 @@ def pretty_print_counts(
             clines="all;data",
             hrules=True,
         )
-    latex_str = ""
-    with open(out_path, "r") as in_f:
-        latex_str = in_f.read()
-        if twocol:
-            latex_str = latex_str.replace("\\begin{table}", "\\begin{table*}").replace(
-                "\\end{table}", "\\end{table*}"
-            )
-    with open(out_path, "w") as out_f:
-        out_f.write(latex_str)
     return counts_df
+
+
+def collapse_first_rows(tex_file: Path):
+    with open(tex_file, "r") as f:
+        lines = f.readlines()
+
+    # Find the line with the first \toprule after the header
+    hline_index = next(i for i, line in enumerate(lines) if "\\toprule" in line)
+    header_lines = lines[hline_index + 1 : hline_index + 3]
+    header_content = [li.split("&") for li in header_lines]
+    combined_header = []
+    for col in range(len(header_content[0])):
+        col_contents = [
+            header_content[row][col].strip().replace("\\\\", "")
+            for row in range(len(header_content))
+        ]
+        combined_header.append(" ".join(col_contents))
+    lines = (
+        lines[: hline_index + 1]
+        + [" & ".join(combined_header) + " \\\\\n"]
+        + lines[hline_index + 3 :]
+    )
+    # Write the modified lines back to the file
+    with open(tex_file, "w") as f:
+        f.writelines(lines)
+
+
+def to_multicol(tex_file: Path):
+    with open(tex_file, "r") as in_f:
+        latex_str = in_f.read()
+        latex_str = latex_str.replace("\\begin{table}", "\\begin{table*}").replace(
+            "\\end{table}", "\\end{table*}"
+        )
+    with open(tex_file, "w") as out_f:
+        out_f.write(latex_str)
+
+
+def add_args(tex_file: Path, before_caption: str = "", after_caption: str = ""):
+    with open(tex_file, "r") as in_f:
+        latex_lines = in_f.readlines()
+    caption_index = next(i for i, line in enumerate(latex_lines) if "\\caption" in line)
+    latex_lines = (
+        latex_lines[:caption_index]
+        + [before_caption + "\n"]
+        + latex_lines[caption_index : caption_index + 1]
+        + [after_caption + "\n"]
+        + latex_lines[caption_index + 1 :]
+    )
+    with open(tex_file, "w") as out_f:
+        out_f.writelines(latex_lines)

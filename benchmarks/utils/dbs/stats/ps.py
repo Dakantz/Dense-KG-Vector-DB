@@ -1,12 +1,10 @@
-import json
 import logging
-import re
-import subprocess
 import threading
 import traceback
 
 import pandas as pd
 import psutil as ps
+
 from .base import BaseStatRecorder
 
 logger = logging.getLogger(__name__)
@@ -31,7 +29,11 @@ class PSStatRecorder(BaseStatRecorder):
 
     def get_wall_time(self):
         try:
-            return self.proc.cpu_times().user + self.proc.cpu_times().system
+            all_procs = [self.proc] + self.proc.children(recursive=True)
+            full_wall_time = sum(
+                p.cpu_times().user + p.cpu_times().system for p in all_procs
+            )
+            return full_wall_time
         except Exception as e:
             logger.error(f"Error getting wall time for PID {self.pid}: {e}")
             traceback.print_exc()
@@ -40,16 +42,20 @@ class PSStatRecorder(BaseStatRecorder):
     def record_stats(self):
         try:
             proc = self.proc
-            record = {
-                "timestamp": pd.Timestamp.now(),
-                "cpu_percent": proc.cpu_percent(interval=None),
-                "mem_usage": proc.memory_full_info().rss,
-                "net_io": -1,
-                "block_io": -1,  # sum(proc.io_counters()),
-                "pids": len(proc.children(recursive=True)) + 1,
-            }
-            self.add_stats(record)
-            logger.debug(f"Raw stats output for PID {self.pid}: {record}")
+            with proc.oneshot():
+                all_procs = [proc] + proc.children(recursive=True)
+                full_memory_usage = sum(p.memory_full_info().rss for p in all_procs)
+                full_cpu_percent = sum(p.cpu_percent(interval=None) for p in all_procs)
+                record = {
+                    "timestamp": pd.Timestamp.now(),
+                    "cpu_percent": full_cpu_percent,
+                    "mem_usage": full_memory_usage,
+                    "net_io": -1,
+                    "block_io": -1,  # sum(proc.io_counters()),
+                    "pids": len(proc.children(recursive=True)) + 1,
+                }
+                self.add_stats(record)
+                logger.debug(f"Raw stats output for PID {self.pid}: {record}")
         except ps.NoSuchProcess:
             logger.warning(f"Process with PID {self.pid} no longer exists.")
             self.stop_recording()

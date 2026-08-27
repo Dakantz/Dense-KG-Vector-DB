@@ -26,7 +26,7 @@ git submodule sync
 uv sync # assumes uv is installed
 source .venv/bin/activate
 cd faiss
-sh ./install_with_uv.sh --cpu
+bash ./install_with_uv.sh --cpu
 ```
 
 ### Compiling `qlever`

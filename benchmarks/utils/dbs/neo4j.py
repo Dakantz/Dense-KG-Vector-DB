@@ -62,6 +62,9 @@ class Neo4JDB(ExecutableDB):
         # self.dbms_dir = dbms_dir
         # self.db_dir = self.dbms_dir / self.dataset.data_dir.name
 
+    def start_request(self):
+        return "GET"
+
     def driver(self):
         return GraphDatabase.driver(self.URI, auth=self.AUTH)
 
