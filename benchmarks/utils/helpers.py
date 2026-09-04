@@ -9,6 +9,28 @@ import pandas as pd
 from pathlib import Path
 
 
+def darken_color(color, factor=0.7):
+    """
+    Darkens a given color by a specified factor.
+
+    Parameters:
+    - color: A color in any format recognized by matplotlib (e.g., hex, RGB tuple).
+    - factor: A float between 0 and 1. Values < 1 will darken the color, while values > 1 will lighten it.
+
+    Returns:
+    - A darkened color in the same format as the input.
+    """
+    import matplotlib.colors as mcolors
+
+    # Convert the color to RGB format
+    rgb = mcolors.to_rgb(color)
+    hsv = mcolors.rgb_to_hsv(rgb)
+
+    # Darken the value (brightness) component
+    hsv[2] *= factor
+    return mcolors.hsv_to_rgb(hsv)
+
+
 def recall_at_k(
     result: pd.DataFrame | None, reference: pd.DataFrame, k: int, col: str | int = 0
 ) -> float:
@@ -76,7 +98,10 @@ def to_pow_10(x, bold=False):
     if base_10 == 0:
         repr = f"{extra:.2f}"
     if extra == 1:
-        repr = f"10^{{{base_10}}}"
+        if base_10 == 1:
+            repr = "10"
+        else:
+            repr = f"10^{{{base_10}}}"
     if np.allclose(x, 1.0):
         repr = "1"
     if bold:

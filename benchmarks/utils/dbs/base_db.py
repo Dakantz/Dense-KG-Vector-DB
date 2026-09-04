@@ -201,6 +201,7 @@ class BaseDB(
         tensor: DataTensor | None = None,
         query_difficulty: QUERY_DIFFICULTY = None,
         query_type: QUERY_TYPE = QUERY_TYPE.EMBEDDED,
+        timeout: int | None = None,
     ) -> pd.DataFrame:
         available_queries = self.get_queries(embedding=tensor)
         if query_difficulty not in available_queries:
@@ -227,7 +228,9 @@ class BaseDB(
                 qres = self.g.query(query_types[query_type])
                 return self.q_to_df_values(qres)
 
-        return run_with_timeout(query_operation, timeout=self.timeout)
+        return run_with_timeout(
+            query_operation, timeout=self.timeout if timeout is None else timeout
+        )
 
     def query(
         self,

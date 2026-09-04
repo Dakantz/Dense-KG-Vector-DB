@@ -19,6 +19,10 @@ type_map = {
     "embedded": "Embedded",
     "two_stage": "Two Stage",
 }
+difficulty_map = {
+    "easy": "Scan",
+    "hard": "Join",
+}
 
 
 def map_df_readable(df: pd.DataFrame) -> pd.DataFrame:
@@ -29,4 +33,6 @@ def map_df_readable(df: pd.DataFrame) -> pd.DataFrame:
             df["query_type"].map(query_type_mapping).fillna(df["query_type"])
         )
         df["query_type"] = df["query_type"].map(type_map).fillna(df["query_type"])
+    if "difficulty" in df.columns:
+        df["difficulty"] = df["difficulty"].map(difficulty_map).fillna(df["difficulty"])
     return df
