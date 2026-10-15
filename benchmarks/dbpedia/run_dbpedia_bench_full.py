@@ -33,7 +33,7 @@ argsc.add_argument(
 argsc.add_argument(
     "--base-dir",
     type=str,
-    default="./data/dbpedia/dbpedia",
+    default="./data/dbpedia",
     help="Base directory for DBPedia datasets",
 )
 argsc.add_argument(
@@ -79,7 +79,7 @@ if __name__ == "__main__":
             use_encoded_ttl=True,
             enable_tensor_index=True,
             name="Qlever",
-            port_offset=-100,
+            port_offset=-150,
         ),
         QleverDBNative(
             id="timing-qlever",
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             use_encoded_ttl=True,
             enable_tensor_index=False,
             name="Qlever (no Tensor Vocabulary)",
-            port_offset=-200,
+            port_offset=-250,
         ),
         FusekiDBNative(
             id="timing-fuseki",
@@ -96,7 +96,7 @@ if __name__ == "__main__":
             dataset=dataset,
             use_encoded_ttl=True,
             name="Fuseki",
-            port_offset=-300,
+            port_offset=-350,
         ),
     ]
 

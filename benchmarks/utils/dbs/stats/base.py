@@ -31,11 +31,10 @@ class BaseStatRecorder:
         raise NotImplementedError("record_stats must be implemented by subclasses")
 
     @abstractmethod
-    def get_wall_time(self) -> float:
-        raise NotImplementedError("get_wall_time must be implemented by subclasses")
+    def get_cpu_time(self) -> float:
+        raise NotImplementedError("get_cpu_time must be implemented by subclasses")
 
     def start_recording(self, interval_seconds=0.1):
-
         if hasattr(self, "_record_thread") and self._record_thread.is_alive():
             logger.warning(
                 f"Stat recording already running for container {self.identifier}. Ignoring start_recording call."

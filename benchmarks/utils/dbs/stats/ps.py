@@ -27,7 +27,7 @@ class PSStatRecorder(BaseStatRecorder):
         self.clear_stats()
         self.proc = ps.Process(self.pid)
 
-    def get_wall_time(self):
+    def get_cpu_time(self):
         try:
             all_procs = [self.proc] + self.proc.children(recursive=True)
             full_wall_time = sum(
@@ -35,7 +35,7 @@ class PSStatRecorder(BaseStatRecorder):
             )
             return full_wall_time
         except Exception as e:
-            logger.error(f"Error getting wall time for PID {self.pid}: {e}")
+            logger.error(f"Error getting cpu time for PID {self.pid}: {e}")
             traceback.print_exc()
             return None
 

@@ -1,0 +1,25 @@
+default:
+  image: docker:29.0
+  services:
+    - docker:29.0-dind
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+
+stages:
+  - build
+  - test
+  - release
+  - deploy
+
+variables:
+  # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  CONTAINER_QLEVER_IMAGE: $CI_REGISTRY_IMAGE:qlever_$CI_COMMIT_REF_SLUG
+
+build-image:
+  stage: build
+  script:
+    - docker build -m 10g  --build-arg RUN_TESTS=false --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $CONTAINER_QLEVER_IMAGE --pull -t $CONTAINER_QLEVER_IMAGE ./qlever
+    - docker push $CONTAINER_QLEVER_IMAGE

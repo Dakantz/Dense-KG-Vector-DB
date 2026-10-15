@@ -56,15 +56,15 @@ class BenchmarkRunner:
         if not q:
             return None
         end_time = None
-        wall_time_end = None
+        cpu_time_end = None
         results_df = None
         result = {
             "elapsed_time": np.inf,
             "ndcg_score": -1,
             "recall_score": -1,
-            "wall_time": None,
+            "cpu_time": None,
         }
-        wall_time_start = db.stat_recorder.get_wall_time() if db.stat_recorder else None
+        cpu_time_start = db.stat_recorder.get_cpu_time() if db.stat_recorder else None
         start_time = timeit.default_timer()
         try:
             if query_type != QUERY_TYPE.TWO_STAGE:
@@ -75,9 +75,7 @@ class BenchmarkRunner:
                 )
             # score the results if reference results are provided
             end_time = timeit.default_timer()
-            wall_time_end = (
-                db.stat_recorder.get_wall_time() if db.stat_recorder else None
-            )
+            cpu_time_end = db.stat_recorder.get_cpu_time() if db.stat_recorder else None
             results_df = (
                 db.q_to_df_values(results) if results_df is None else results_df
             )
@@ -97,13 +95,13 @@ class BenchmarkRunner:
             logger.error(f"Error occurred while querying {db.name}: {e}")
             traceback.print_exc()
         elapsed_time = end_time - start_time if end_time is not None else np.inf
-        run_wall_time = (
-            (wall_time_end - wall_time_start)
-            if (wall_time_start is not None and wall_time_end is not None)
+        run_cpu_time = (
+            (cpu_time_end - cpu_time_start)
+            if (cpu_time_start is not None and cpu_time_end is not None)
             else None
         )
         result["elapsed_time"] = elapsed_time
-        result["wall_time"] = run_wall_time
+        result["cpu_time"] = run_cpu_time
         return result
 
     def test_db(
@@ -113,7 +111,6 @@ class BenchmarkRunner:
         query_type=QUERY_TYPE.EMBEDDED,
         repetitions=128,
     ) -> TestResult:
-
         test_queries = db.get_queries(embedding=self.test_tensor)
         if difficulty not in test_queries or query_type not in test_queries[difficulty]:
             logger.warning(
