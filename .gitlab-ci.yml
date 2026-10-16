@@ -5,11 +5,14 @@ default:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
 
+hooks:
+  pre_get_sources_script:
+    # docker:29.0's git has no ssh client, so rewrite git@github.com: submodule
+    # URLs to HTTPS before the runner clones the repo + submodules.
+    - git config --global url."https://github.com/".insteadOf "git@github.com:"
+
 stages:
   - build
-  - test
-  - release
-  - deploy
 
 variables:
   # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
@@ -17,11 +20,17 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   CONTAINER_QLEVER_IMAGE: $CI_REGISTRY_IMAGE:qlever_$CI_COMMIT_REF_SLUG
+  CONTAINER_JENA_DATATENSOR_IMAGE: $CI_REGISTRY_IMAGE:jena-datatensor_$CI_COMMIT_REF_SLUG
   GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_FORCE_HTTPS: "true"
 
-build-image:
+build-qlever-image:
   stage: build
   script:
     - docker build -m 10g  --build-arg RUN_TESTS=false --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $CONTAINER_QLEVER_IMAGE --pull -t $CONTAINER_QLEVER_IMAGE ./qlever
     - docker push $CONTAINER_QLEVER_IMAGE
+
+build-jena-datatensor-image:
+  stage: build
+  script:
+    - docker build -m 10g --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $CONTAINER_JENA_DATATENSOR_IMAGE --pull -t $CONTAINER_JENA_DATATENSOR_IMAGE ./jena-datatensor
+    - docker push $CONTAINER_JENA_DATATENSOR_IMAGE
