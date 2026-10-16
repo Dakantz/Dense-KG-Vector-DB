@@ -4,12 +4,12 @@ default:
     - docker:29.0-dind
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-
-hooks:
-  pre_get_sources_script:
     # docker:29.0's git has no ssh client, so rewrite git@github.com: submodule
-    # URLs to HTTPS before the runner clones the repo + submodules.
+    # URLs to HTTPS before fetching them ourselves (GIT_SUBMODULE_STRATEGY: none
+    # keeps the runner from trying the SSH clone first).
     - git config --global url."https://github.com/".insteadOf "git@github.com:"
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
 
 stages:
   - build
@@ -21,7 +21,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   CONTAINER_QLEVER_IMAGE: $CI_REGISTRY_IMAGE:qlever_$CI_COMMIT_REF_SLUG
   CONTAINER_JENA_DATATENSOR_IMAGE: $CI_REGISTRY_IMAGE:jena-datatensor_$CI_COMMIT_REF_SLUG
-  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_STRATEGY: none
 
 build-qlever-image:
   stage: build
