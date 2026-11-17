@@ -23,6 +23,7 @@ class QUERY_DIFFICULTY(Enum):
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
+    GROUP_HARD = "group_hard"
 
 
 class QUERY_TYPE(Enum):
@@ -39,6 +40,7 @@ for difficulty in [
     QUERY_DIFFICULTY.EASY,
     QUERY_DIFFICULTY.MEDIUM,
     QUERY_DIFFICULTY.HARD,
+    QUERY_DIFFICULTY.GROUP_HARD,
 ]:
     mixin_queries[difficulty] = {}
     for query_type in [

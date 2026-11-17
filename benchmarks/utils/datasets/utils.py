@@ -1,19 +1,15 @@
 # adapted from https://github.com/RDFLib/rdflib/discussions/1560
 
-from collections.abc import Callable
-from io import TextIOWrapper
-from queue import Queue
-import threading
-import time
-from types import FunctionType
-from typing import Generator, TypeVar
-from rdflib.graph import Graph
-from rdflib import Literal, URIRef
-from rdflib.term import Node
-import gzip
 import bz2
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import gzip
+import threading
+from io import TextIOWrapper
 from pathlib import Path
+from queue import Queue
+from typing import Generator
+
+from rdflib.graph import Graph
+from rdflib.term import Node
 
 
 def parse_nt_to_generator(

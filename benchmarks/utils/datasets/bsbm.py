@@ -23,6 +23,7 @@ logger.setLevel(logging.INFO)
 class BerlinSparqlBenchmark(
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
@@ -198,6 +199,32 @@ LIMIT 10
                 FILTER(?productA != ?productB && ?featureA != ?featureB && ?dist < 1.0)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }} ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_group_hard_embedded(self, embedding: DataTensor) -> str:
+        # Group by feature and return the product with the highest similarity for each feature
+        return f"""
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
+            PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
+            PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
+            SELECT DISTINCT  ?productA ?featureA ?productB ?dist ?vectorA ?vectorBmean
+            WHERE {{
+                ?productA bsbmv:productFeature ?featureA .
+                ?featureA rdf:comment_embedding ?vectorA .
+                {{
+                    SELECT DISTINCT ?productB dta:mean(?vectorB) AS ?vectorBmean WHERE {{
+                         ?productB bsbmv:productFeature ?featureB .
+                         ?featureB rdf:comment_embedding ?vectorB .
+                    }} GROUP BY ?featureB
+                }}
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
+                FILTER(?productA != ?productB && ?dist < 1.0)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }} GROUP BY ?featureA ?productA ?productB ?vectorA ?vectorBmean ?dist
+            ORDER BY DESC(?dist)
             LIMIT 10
         """
 

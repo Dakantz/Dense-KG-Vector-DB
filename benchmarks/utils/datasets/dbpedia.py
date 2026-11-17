@@ -15,10 +15,11 @@ class DBPedia(
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
-    # mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
-    # mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
+    mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
+    mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
     BaseDataset,
 ):
     def __init__(self, base_dir: Path, left="NaturalPlace", right="Village"):
@@ -173,3 +174,29 @@ RETURN DISTINCT elementId(n) AS product_id, score
 ORDER BY score DESCENDING
 LIMIT 10
 """
+
+    def get_query_group_hard_embedded(self, embedding: DataTensor) -> str:
+        # Group by class and return the instance of the class with the highest thumbnail similarity for each class
+        return f"""
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
+            PREFIX dbr: <http://dbpedia.org/resource/>
+            PREFIX dbo: <http://dbpedia.org/ontology/>
+            SELECT DISTINCT ?instA ?clsA ?instB ?clsB ?vectorA ?vectorBmean ?dist 
+            WHERE {{
+                ?instA a ?clsA .
+                ?instA dbo:thumbnail_embedding ?vectorA .
+                {{
+                    SELECT DISTINCT ?clsB dta:mean(?vectorB) AS ?vectorBmean WHERE {{
+                         ?instB a ?clsB ;
+                         ?instB dbo:thumbnail_embedding ?vectorB .
+                    }} GROUP BY ?clsB
+                }}
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
+                FILTER(?clsA == ?clsB && ?dist < 1.0)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }} GROUP BY ?featureA ?productA ?productB ?vectorA ?vectorBmean ?dist
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
