@@ -20,6 +20,11 @@ import subprocess
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+qlever_path = (
+    Path(__file__).parent.parent.parent.parent / "qlever" / "build" / "release"
+)
+os.environ["PATH"] = f"{os.environ.get('PATH', '')}:{qlever_path.resolve()}"
+
 
 class QleverDBNative(ExecutableDB):
     port_id: int = 12030
