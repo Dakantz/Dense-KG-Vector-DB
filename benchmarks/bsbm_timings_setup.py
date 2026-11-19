@@ -70,5 +70,5 @@ if __name__ == "__main__":
     for power, size in zip(powers, sizes):
         print(f"Encoding dataset of size {size}...")
         dataset = datasets[power]
-        encoded_sizes[power] = dataset.encode(encoding_model)
+        encoded_sizes[power] = dataset.encode_streaming(encoding_model)
         #  dataset.get_triple_count(encoded=True)

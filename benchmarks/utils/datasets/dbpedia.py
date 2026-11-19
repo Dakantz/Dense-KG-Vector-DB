@@ -15,7 +15,10 @@ class DBPedia(
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_EASY][QUERY_TYPE.INDEX],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
@@ -175,6 +178,74 @@ ORDER BY score DESCENDING
 LIMIT 10
 """
 
+    def get_query_group_easy_embedded(self, embedding: DataTensor) -> str:
+        # Group by class and return the instance of the class with the highest thumbnail similarity for class ship
+        return f"""
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
+            PREFIX dbr: <http://dbpedia.org/resource/>
+            PREFIX dbo: <http://dbpedia.org/ontology/>
+            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            WHERE {{
+                ?instA a ?clsB .
+                ?instA dbo:thumbnail_embedding ?vectorA .
+                {{
+                    SELECT DISTINCT ?clsB (dta:avg(?vectorB) AS ?vectorBmean) WHERE {{
+                         ?instB a ?clsB ;
+                         dbo:thumbnail_embedding ?vectorB .
+                        FILTER (?clsB = dbo:{self.left})
+                    }} GROUP BY ?clsB
+                }}
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_group_easy_index(self, embedding: DataTensor) -> str:
+        # Group by class and return the instance of the class with the highest thumbnail similarity for class ship
+        return f"""
+            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
+            PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
+            PREFIX dbr: <http://dbpedia.org/resource/>
+            PREFIX dbo: <http://dbpedia.org/ontology/>
+            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            WHERE {{
+                ?instA a ?clsB .
+                ?instA dbo:thumbnail_embedding ?vectorA .
+                {{
+                    SELECT DISTINCT ?clsB (dta:avg(?vectorB) AS ?vectorBmean) WHERE {{
+                         ?instB a ?clsB ;
+                         dbo:thumbnail_embedding ?vectorB .
+                        FILTER (?clsB = dbo:{self.left})
+                    }} GROUP BY ?clsB
+                }}
+                SERVICE tensorIndex: {{
+                    _:config tensorIndex:numNN 10 ;
+                    tensorIndex:left ?vectorBmean ;
+                    tensorIndex:bindDistance ?dist ;
+                    tensorIndex:payload ?instA, ?clsB, ?vectorBmean ;
+                    tensorIndex:searchK 16 ;
+                    tensorIndex:kIVF 128 ;
+                    tensorIndex:experimentalRightCacheName "hard_group_index_dbpedia" ;
+                    tensorIndex:right ?vectorA ;
+                    tensorIndex:algorithm tensorIndex:ivf ;
+                    tensorIndex:distance tensorIndex:dot .
+                    {{
+                        ?instA a ?clsB .       
+                        ?instA dbo:thumbnail_embedding ?vectorA .   
+                        FILTER (?clsB = dbo:{self.left})
+                    }}
+                }}  
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
     def get_query_group_hard_embedded(self, embedding: DataTensor) -> str:
         # Group by class and return the instance of the class with the highest thumbnail similarity for each class
         return f"""
@@ -183,20 +254,19 @@ LIMIT 10
             PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
             PREFIX dbr: <http://dbpedia.org/resource/>
             PREFIX dbo: <http://dbpedia.org/ontology/>
-            SELECT DISTINCT ?instA ?clsA ?instB ?clsB ?vectorA ?vectorBmean ?dist 
+            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
             WHERE {{
-                ?instA a ?clsA .
+                ?instA a ?clsB .
                 ?instA dbo:thumbnail_embedding ?vectorA .
                 {{
-                    SELECT DISTINCT ?clsB dta:mean(?vectorB) AS ?vectorBmean WHERE {{
+                    SELECT DISTINCT ?clsB (dta:avg(?vectorB) AS ?vectorBmean) WHERE {{
                          ?instB a ?clsB ;
-                         ?instB dbo:thumbnail_embedding ?vectorB .
+                         dbo:thumbnail_embedding ?vectorB .
                     }} GROUP BY ?clsB
                 }}
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
-                FILTER(?clsA == ?clsB && ?dist < 1.0)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-            }} GROUP BY ?featureA ?productA ?productB ?vectorA ?vectorBmean ?dist
+            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
             ORDER BY DESC(?dist)
             LIMIT 10
         """

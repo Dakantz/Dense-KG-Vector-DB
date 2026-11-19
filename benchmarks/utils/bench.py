@@ -191,15 +191,22 @@ class BenchmarkRunner:
                     logger.info(
                         f"Running benchmark for {db.name}, difficulty {difficulty.value}, query type {query_type.value}"
                     )
-                    result = self.test_db(
-                        db,
-                        difficulty=difficulty,
-                        query_type=query_type,
-                        repetitions=repetitions,
-                    )
-                    if result is not None:
-                        all_timings.append(result.timings)
-                        all_stats.append(result.stats)
+                    try:
+                        result = self.test_db(
+                            db,
+                            difficulty=difficulty,
+                            query_type=query_type,
+                            repetitions=repetitions,
+                        )
+                        if result is not None:
+                            all_timings.append(result.timings)
+                            all_stats.append(result.stats)
+                    except Exception as e:
+                        logger.error(
+                            f"Error occurred while testing {db.name} for difficulty {difficulty.value} and query type {query_type.value}: {e}"
+                        )
+                        traceback.print_exc()
+                        continue
         logger.info(
             "Benchmark completed got: %d timings and %d stats",
             len(all_timings),

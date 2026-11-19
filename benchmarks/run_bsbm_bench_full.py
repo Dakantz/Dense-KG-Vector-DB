@@ -64,7 +64,7 @@ if __name__ == "__main__":
         print(f"Running BDSDM generation for size {size}...")
         dataset = BerlinSparqlBenchmark(base_dir=Path(f"./data/bsbm_{power}"), n=size)
         dataset.setup()
-        dataset.encode(encoding_model)
+        dataset.encode_streaming(encoding_model)
         datasets[power] = dataset
 
     timings_df = pd.DataFrame()
