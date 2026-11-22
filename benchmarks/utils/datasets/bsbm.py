@@ -23,9 +23,12 @@ logger.setLevel(logging.INFO)
 class BerlinSparqlBenchmark(
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.EMBEDDED],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_EASY][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.EMBEDDED],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.INDEX],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_EASY][QUERY_TYPE.INDEX],
+    mixin_queries[QUERY_DIFFICULTY.GROUP_HARD][QUERY_TYPE.INDEX],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.TWO_STAGE],
     mixin_queries[QUERY_DIFFICULTY.HARD][QUERY_TYPE.TWO_STAGE],
     mixin_queries[QUERY_DIFFICULTY.EASY][QUERY_TYPE.CYPHER_EMBEDDED],
@@ -202,28 +205,118 @@ LIMIT 10
             LIMIT 10
         """
 
-    def get_query_group_hard_embedded(self, embedding: DataTensor) -> str:
+    def get_query_group_easy_embedded(self, embedding: DataTensor) -> str:
         # Group by feature and return the product with the highest similarity for each feature
         return f"""
-            PREFIX rdf: <http://www.w3.org/2000/01/rdf-schema#>
-            PREFIX dtf: <https://w3id.org/rdf-tensor/functions#>
-            PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
-            PREFIX bsbmi: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/instances/>
-            PREFIX bsbmv: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-            SELECT DISTINCT  ?productA ?featureA ?productB ?dist ?vectorA ?vectorBmean
+            SELECT  ?productA ?featureA ?featureB ?dist ?vectorA ?vectorBmean
             WHERE {{
-                ?productA bsbmv:productFeature ?featureA .
-                ?featureA rdf:comment_embedding ?vectorA .
+                ?productA bsbmv:productFeature ?featureB ;
+                     rdfs:comment_embedding ?vectorA .
                 {{
-                    SELECT DISTINCT ?productB dta:mean(?vectorB) AS ?vectorBmean WHERE {{
-                         ?productB bsbmv:productFeature ?featureB .
-                         ?featureB rdf:comment_embedding ?vectorB .
+                    SELECT DISTINCT ?featureB (dta:avg(?vectorB) AS ?vectorBmean) (COUNT(?vectorB) AS ?count) WHERE {{
+                         ?productB bsbmv:productFeature ?featureB ;
+                             rdfs:comment_embedding ?vectorB .
+                         FILTER(?featureB = bsbmi:ProductFeature1)
                     }} GROUP BY ?featureB
                 }}
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
-                FILTER(?productA != ?productB && ?dist < 1.0)
+                FILTER(?count > 1)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-            }} GROUP BY ?featureA ?productA ?productB ?vectorA ?vectorBmean ?dist
+            }}
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_group_hard_embedded(self, embedding: DataTensor) -> str:
+        # Group by feature and return the product with the highest similarity for each feature
+        return f"""
+            SELECT  ?productA ?featureA ?featureB ?dist ?vectorA ?vectorBmean
+            WHERE {{
+                ?productA bsbmv:productFeature ?featureB ;
+                     rdfs:comment_embedding ?vectorA .
+                {{
+                    SELECT DISTINCT ?featureB (dta:avg(?vectorB) AS ?vectorBmean) (COUNT(?vectorB) AS ?count) WHERE {{
+                         ?productB bsbmv:productFeature ?featureB ;
+                           rdfs:comment_embedding ?vectorB .
+                    }} GROUP BY ?featureB
+                }}
+                BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
+                FILTER(?count > 1)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }}
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_group_easy_index(self, embedding: DataTensor) -> str:
+        # Group by feature and return the product with the highest similarity for each feature
+        return f"""
+            PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
+            SELECT  ?productA ?featureA ?featureB ?dist ?vectorA ?vectorBmean
+            WHERE {{
+                {{
+                    SELECT DISTINCT ?featureB (dta:avg(?vectorB) AS ?vectorBmean) (COUNT(?vectorB) AS ?count) WHERE {{
+                         ?productB bsbmv:productFeature ?featureB ;
+                             rdfs:comment_embedding ?vectorB .
+                         FILTER(?featureB = bsbmi:ProductFeature1)
+                    }} GROUP BY ?featureB
+                }}
+                SERVICE tensorIndex: {{
+                    _:config tensorIndex:numNN 10 ;
+                    tensorIndex:left ?vectorBmean ;
+                    tensorIndex:bindDistance ?dist ;
+                    tensorIndex:payload ?productA, ?featureB, ?vectorBmean ;
+                    tensorIndex:searchK 16 ;
+                    tensorIndex:kIVF 128 ;
+                    tensorIndex:experimentalRightCacheName "easy_group_index_bsbm" ;
+                    tensorIndex:right ?vectorA ;
+                    tensorIndex:algorithm tensorIndex:ivf ;
+                    tensorIndex:distance tensorIndex:dot .
+                    {{
+                        ?productA bsbmv:productFeature ?featureB ;
+                             rdfs:comment_embedding ?vectorA .   
+                         FILTER(?featureB = bsbmi:ProductFeature1)
+                    }}
+                }}
+                FILTER(?count > 1)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }}
+            ORDER BY DESC(?dist)
+            LIMIT 10
+        """
+
+    def get_query_group_hard_index(self, embedding: DataTensor) -> str:
+        # Group by feature and return the product with the highest similarity for each feature
+        return f"""
+            PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
+            SELECT  ?productA ?featureA ?featureB ?dist ?vectorA ?vectorBmean
+            WHERE {{
+                {{
+                    SELECT DISTINCT ?featureB (dta:avg(?vectorB) AS ?vectorBmean) (COUNT(?vectorB) AS ?count) WHERE {{
+                         ?productB bsbmv:productFeature ?featureB ;
+                             rdfs:comment_embedding ?vectorB .
+                         FILTER(?featureB = bsbmi:ProductFeature1)
+                    }} GROUP BY ?featureB
+                }}
+                SERVICE tensorIndex: {{
+                    _:config tensorIndex:numNN 10 ;
+                    tensorIndex:left ?vectorBmean ;
+                    tensorIndex:bindDistance ?dist ;
+                    tensorIndex:payload ?productA, ?featureB, ?vectorBmean ;
+                    tensorIndex:searchK 16 ;
+                    tensorIndex:kIVF 128 ;
+                    tensorIndex:experimentalRightCacheName "hard_group_index_bsbm" ;
+                    tensorIndex:right ?vectorA ;
+                    tensorIndex:algorithm tensorIndex:ivf ;
+                    tensorIndex:distance tensorIndex:dot .
+                    {{
+                        ?productA bsbmv:productFeature ?featureB ;
+                                rdfs:comment_embedding ?vectorA .   
+                    }}
+                }}
+                FILTER(?count > 1)
+                VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
+            }}
             ORDER BY DESC(?dist)
             LIMIT 10
         """

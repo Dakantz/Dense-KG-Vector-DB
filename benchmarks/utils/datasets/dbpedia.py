@@ -186,7 +186,7 @@ LIMIT 10
             PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
             PREFIX dbr: <http://dbpedia.org/resource/>
             PREFIX dbo: <http://dbpedia.org/ontology/>
-            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            SELECT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
             WHERE {{
                 ?instA a ?clsB .
                 ?instA dbo:thumbnail_embedding ?vectorA .
@@ -199,7 +199,7 @@ LIMIT 10
                 }}
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
+            }}
             ORDER BY DESC(?dist)
             LIMIT 10
         """
@@ -212,7 +212,7 @@ LIMIT 10
             PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
             PREFIX dbr: <http://dbpedia.org/resource/>
             PREFIX dbo: <http://dbpedia.org/ontology/>
-            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            SELECT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
             WHERE {{
                 ?instA a ?clsB .
                 ?instA dbo:thumbnail_embedding ?vectorA .
@@ -224,7 +224,7 @@ LIMIT 10
                     }} GROUP BY ?clsB
                 }}
                 SERVICE tensorIndex: {{
-                    _:config tensorIndex:numNN 10 ;
+                    _:config tensorIndex:numNN 1 ;
                     tensorIndex:left ?vectorBmean ;
                     tensorIndex:bindDistance ?dist ;
                     tensorIndex:payload ?instA, ?clsB, ?vectorBmean ;
@@ -241,7 +241,7 @@ LIMIT 10
                     }}
                 }}  
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
+            }}
             ORDER BY DESC(?dist)
             LIMIT 10
         """
@@ -254,7 +254,7 @@ LIMIT 10
             PREFIX dta: <https://w3id.org/rdf-tensor/aggregates#>
             PREFIX dbr: <http://dbpedia.org/resource/>
             PREFIX dbo: <http://dbpedia.org/ontology/>
-            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            SELECT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
             WHERE {{
                 ?instA a ?clsB .
                 ?instA dbo:thumbnail_embedding ?vectorA .
@@ -266,7 +266,7 @@ LIMIT 10
                 }}
                 BIND(dtf:cosineSimilarity(?vectorA, ?vectorBmean) AS ?dist)
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
-            }} GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
+            }}
             ORDER BY DESC(?dist)
             LIMIT 10
         """
@@ -280,7 +280,7 @@ LIMIT 10
             PREFIX dbr: <http://dbpedia.org/resource/>
             PREFIX dbo: <http://dbpedia.org/ontology/>
             PREFIX tensorIndex: <https://qlever.cs.uni-freiburg.de/tensorIndex/>
-            SELECT DISTINCT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
+            SELECT ?instA ?clsB ?vectorA ?vectorBmean ?dist 
             WHERE {{                
                 {{
                     SELECT ?clsB (dta:avg(?vectorB) AS ?vectorBmean) WHERE {{
@@ -306,7 +306,6 @@ LIMIT 10
                 }}  
                 VALUES (?some_emb) {{ ({embedding.to_literal().n3()}) }}
             }}
-            GROUP BY ?instA ?clsB ?vectorA ?vectorBmean ?dist
             ORDER BY DESC(?dist)
             LIMIT 10
         """

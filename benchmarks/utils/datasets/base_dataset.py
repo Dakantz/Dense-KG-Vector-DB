@@ -89,6 +89,12 @@ class BaseDataset(ABC):
         self.data_dir = Path(data_dir) if data_dir is not None else Path(os.getcwd())
         self._data = None
         self.prefixes = prefixes if prefixes is not None else {}
+        self.prefixes.update(
+            {
+                "dtf": "https://w3id.org/rdf-tensor/functions#",
+                "dta": "https://w3id.org/rdf-tensor/aggregates#",
+            }
+        )
 
     def setup(self):
         pass

@@ -75,6 +75,8 @@ if __name__ == "__main__":
         difficulties = [
             QUERY_DIFFICULTY.EASY,
             QUERY_DIFFICULTY.HARD,
+            QUERY_DIFFICULTY.GROUP_EASY,
+            QUERY_DIFFICULTY.GROUP_HARD,
         ]
         print(f"Running BDSDM timing for size {size}...")
         dataset = datasets[power]
